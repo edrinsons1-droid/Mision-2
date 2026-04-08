@@ -1,0 +1,1098 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgroVision AI - SaaS Agrícola</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- FontAwesome for standard icons if needed (optional) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            /* Light Theme Variables */
+            --bg-color: #f8fafc;
+            --surface-color: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --primary: #15803d; /* Agricultural Green */
+            --primary-hover: #166534;
+            --accent: #22c55e;
+            --danger: #ef4444;
+            --danger-bg: #fee2e2;
+            --danger-text: #b91c1c;
+            --border: #e2e8f0;
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+            --radius-md: 0.5rem;
+            --radius-lg: 1rem;
+            --radius-full: 9999px;
+            --transition-all: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* Dark Theme overrides via .dark class on html */
+        html.dark {
+            --bg-color: #0f172a;
+            --surface-color: #1e293b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border: #334155;
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.5);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.5), 0 2px 4px -2px rgb(0 0 0 / 0.5);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.5), 0 4px 6px -4px rgb(0 0 0 / 0.5);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            line-height: 1.5;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            transition: var(--transition-all);
+            overflow-x: hidden;
+        }
+
+        /* Utilities */
+        .hidden { display: none !important; }
+        .text-center { text-align: center; }
+        .mt-1 { margin-top: 0.25rem; }
+        .mt-2 { margin-top: 0.5rem; }
+        .mt-4 { margin-top: 1rem; }
+        .mt-6 { margin-top: 1.5rem; }
+        .mt-8 { margin-top: 2rem; }
+        .mb-2 { margin-bottom: 0.5rem; }
+        .mb-4 { margin-bottom: 1rem; }
+        .mb-6 { margin-bottom: 1.5rem; }
+        .p-4 { padding: 1rem; }
+        .p-6 { padding: 1.5rem; }
+        .p-8 { padding: 2rem; }
+        .flex { display: flex; }
+        .flex-col { flex-direction: column; }
+        .items-center { align-items: center; }
+        .justify-center { justify-content: center; }
+        .justify-between { justify-content: space-between; }
+        .gap-4 { gap: 1rem; }
+        .gap-6 { gap: 1.5rem; }
+        .w-full { width: 100%; }
+        .max-w-md { max-w: 28rem; }
+        .max-w-4xl { max-width: 56rem; margin: 0 auto; }
+        .text-primary { color: var(--primary); }
+        .text-muted { color: var(--text-muted); }
+        .font-bold { font-weight: 700; }
+        .text-xl { font-size: 1.25rem; }
+        .text-2xl { font-size: 1.5rem; }
+        .text-3xl { font-size: 1.875rem; }
+        .text-4xl { font-size: 2.25rem; }
+        .text-5xl { font-size: 3rem; }
+        .rounded-lg { border-radius: var(--radius-lg); }
+        .shadow-md { box-shadow: var(--shadow-md); }
+        
+        /* Layout Structure */
+        .app-container {
+            display: flex;
+            min-height: 100vh;
+            width: 100%;
+        }
+
+        /* Navbar / Sidebar */
+        .sidebar {
+            width: 260px;
+            background-color: var(--surface-color);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            top: 0; left: 0; bottom: 0;
+            z-index: 40;
+            transition: var(--transition-all);
+        }
+        .sidebar-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .sidebar-logo {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--primary);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .sidebar-nav {
+            padding: 1.5rem 1rem;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem 1rem;
+            color: var(--text-muted);
+            text-decoration: none;
+            border-radius: var(--radius-md);
+            transition: var(--transition-all);
+            font-weight: 500;
+            cursor: pointer;
+        }
+        .nav-item:hover, .nav-item.active {
+            background-color: var(--primary);
+            color: white;
+            box-shadow: var(--shadow-md);
+            transform: translateX(4px);
+        }
+        .theme-toggle {
+            cursor: pointer;
+            padding: 0.5rem;
+            border-radius: var(--radius-full);
+            color: var(--text-muted);
+            transition: var(--transition-all);
+        }
+        .theme-toggle:hover {
+            color: var(--primary);
+            background-color: var(--border);
+        }
+
+        /* Main Content wrapper */
+        .main-content {
+            margin-left: 260px; /* offset for sidebar */
+            padding: 2rem;
+            width: calc(100% - 260px);
+            min-height: 100vh;
+            transition: var(--transition-all);
+        }
+        /* When logged out, main content should take full width */
+        .logged-out .sidebar { display: none; }
+        .logged-out .main-content { margin-left: 0; width: 100%; }
+
+        /* Typography & Components */
+        h1, h2, h3 { line-height: 1.2; }
+        .card {
+            background-color: var(--surface-color);
+            border-radius: var(--radius-lg);
+            padding: 1.5rem;
+            box-shadow: var(--shadow-md);
+            border: 1px solid var(--border);
+            transition: var(--transition-all);
+        }
+        .card:hover {
+            box-shadow: var(--shadow-lg);
+            transform: translateY(-2px);
+        }
+        
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.75rem 1.5rem;
+            border-radius: var(--radius-md);
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            transition: var(--transition-all);
+            text-decoration: none;
+            gap: 0.5rem;
+            font-size: 1rem;
+        }
+        .btn-primary {
+            background-color: var(--primary);
+            color: white;
+            box-shadow: 0 4px 14px 0 rgba(21, 128, 61, 0.39);
+        }
+        .btn-primary:hover {
+            background-color: var(--primary-hover);
+            transform: translateY(-1px);
+        }
+        .btn-outline {
+            background-color: transparent;
+            color: var(--primary);
+            border: 1px solid var(--primary);
+        }
+        .btn-outline:hover {
+            background-color: var(--primary);
+            color: white;
+        }
+
+        /* Forms */
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        label {
+            font-weight: 500;
+            color: var(--text-main);
+            font-size: 0.875rem;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border);
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: inherit;
+            transition: var(--transition-all);
+        }
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(21, 128, 61, 0.2);
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .stat-card {
+            display: flex;
+            flex-direction: column;
+        }
+        .stat-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        .stat-icon.green { background: rgba(34, 197, 94, 0.1); color: var(--accent); }
+        .stat-icon.red { background: var(--danger-bg); color: var(--danger-text); }
+        .stat-icon.blue { background: rgba(59, 130, 246, 0.1); color: #3b82f6; }
+        
+        .stat-value { font-size: 1.875rem; font-weight: 700; color: var(--text-main); }
+        .stat-label { color: var(--text-muted); font-size: 0.875rem; }
+
+        /* Chart container */
+        .chart-container {
+            position: relative;
+            height: 300px;
+            width: 100%;
+        }
+
+        /* Hero Section */
+        .hero-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            min-height: 80vh;
+            padding: 2rem;
+            background: radial-gradient(circle at center, rgba(21,128,61,0.1) 0%, transparent 60%);
+        }
+        .hero-title {
+            font-size: 3.5rem;
+            font-weight: 800;
+            margin-bottom: 1rem;
+            background: linear-gradient(to right, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .hero-subtitle {
+            font-size: 1.25rem;
+            color: var(--text-muted);
+            max-width: 600px;
+            margin-bottom: 2rem;
+        }
+        
+        /* Features Grid */
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        
+        /* Alerts */
+        .alert {
+            padding: 1rem;
+            border-radius: var(--radius-md);
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        .alert-error {
+            background-color: var(--danger-bg);
+            color: var(--danger-text);
+            border: 1px solid #fecaca;
+        }
+        .alert-success {
+            background-color: rgba(34, 197, 94, 0.1);
+            color: #166534;
+            border: 1px solid #bbf7d0;
+        }
+        .dark .alert-success {
+            color: #4ade80;
+            border-color: #14532d;
+        }
+
+        /* Image preview */
+        #imagePreview {
+            max-width: 100%;
+            border-radius: var(--radius-md);
+            margin-top: 1rem;
+            display: none;
+            border: 2px dashed var(--border);
+        }
+
+        /* Loading Spinner */
+        .spinner {
+            border: 3px solid rgba(0,0,0,0.1);
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border-left-color: var(--primary);
+            animation: spin 1s linear infinite;
+        }
+        .dark .spinner { border: 3px solid rgba(255,255,255,0.1); border-left-color: var(--accent); }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        /* Loader Overlay */
+        .loader-overlay {
+            position: fixed;
+            top:0; left:0; right:0; bottom:0;
+            background: var(--bg-color);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 1rem;
+            transition: opacity 0.5s;
+        }
+
+        @media(max-width: 768px) {
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.open { transform: translateX(0); }
+            .main-content { margin-left: 0; width: 100%; padding: 1rem;}
+            .mobile-menu-btn { display: block !important; }
+            .hero-title { font-size: 2.5rem; }
+        }
+        .mobile-menu-btn {
+            display: none;
+            background: transparent; border: none; color: var(--text-main);
+            font-size: 1.5rem; cursor: pointer; position: fixed; top: 1rem; left: 1rem; z-index: 50;
+        }
+        .mobile-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5); z-index: 30; display: none;
+        }
+    </style>
+</head>
+<body class="logged-out">
+
+    <!-- Global Loader -->
+    <div id="loader" class="loader-overlay">
+        <div class="spinner" style="width:50px; height:50px;"></div>
+        <h2 class="text-xl font-bold">Iniciando AgroVision...</h2>
+    </div>
+
+    <button id="mobileMenuBtn" class="mobile-menu-btn"><i class="fas fa-bars"></i></button>
+    <div id="mobileOverlay" class="mobile-overlay"></div>
+
+    <div class="app-container">
+        
+        <!-- SIDEBAR -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <a href="#" onclick="navigate('dashboard')" class="sidebar-logo">
+                    <i class="fas fa-leaf"></i> AgroVision
+                </a>
+                <i class="fas fa-moon theme-toggle" id="themeToggle" title="Modo Oscuro"></i>
+            </div>
+            <nav class="sidebar-nav">
+                <a onclick="navigate('dashboard')" class="nav-item" data-target="dashboard">
+                    <i class="fas fa-chart-line"></i> Dashboard
+                </a>
+                <a onclick="navigate('predict')" class="nav-item" data-target="predict">
+                    <i class="fas fa-seedling"></i> Predicción
+                </a>
+                <a onclick="navigate('upload')" class="nav-item" data-target="upload">
+                    <i class="fas fa-camera"></i> Escáner Cultivo
+                </a>
+                <a onclick="navigate('analytics')" class="nav-item" data-target="analytics">
+                    <i class="fas fa-chart-pie"></i> Analytics
+                </a>
+                <a onclick="navigate('comentarios')" class="nav-item" data-target="comentarios">
+                    <i class="fas fa-comments"></i> Soporte Formspree
+                </a>
+                <a onclick="navigate('perfil')" class="nav-item" data-target="perfil">
+                    <i class="fas fa-user"></i> Mi Perfil
+                </a>
+            </nav>
+        </aside>
+
+        <!-- MAIN WINDOW -->
+        <main class="main-content">
+            
+            <!-- SECTION: HOME -->
+            <section id="home" class="section">
+                <div style="position:absolute; top: 1rem; right: 2rem;">
+                    <button onclick="navigate('login')" class="btn btn-outline">Ingresar</button>
+                    <button onclick="navigate('register')" class="btn btn-primary" style="margin-left: 0.5rem">Registrarse</button>
+                </div>
+                <div class="hero-section">
+                    <div class="stat-icon green" style="width:80px; height:80px; font-size:3rem; margin-bottom:1rem;">
+                        <i class="fas fa-leaf"></i>
+                    </div>
+                    <h1 class="hero-title">Predicción Inteligente de Rendimientos Agrícolas</h1>
+                    <p class="hero-subtitle">Optimiza tus cultivos de café y cacao con inteligencia artificial. Análisis de imágenes, alertas en tiempo real y predicciones precisas.</p>
+                    <button onclick="navigate('register')" class="btn btn-primary text-xl" style="padding: 1rem 2rem;">
+                        Empezar Ahora <i class="fas fa-arrow-right"></i>
+                    </button>
+                </div>
+                
+                <div class="features-grid p-8">
+                    <div class="card text-center">
+                        <i class="fas fa-robot text-primary mb-4 text-4xl"></i>
+                        <h3 class="text-xl font-bold mb-2">IA Agrícola</h3>
+                        <p class="text-muted">Modelos predictivos que evalúan el rendimiento de tus cultivos de forma precisa.</p>
+                    </div>
+                    <div class="card text-center">
+                        <i class="fas fa-camera-retro text-primary mb-4 text-4xl"></i>
+                        <h3 class="text-xl font-bold mb-2">Análisis de Imágenes</h3>
+                        <p class="text-muted">Potente escáner que detecta el estado de salud con solo subir una foto de la planta.</p>
+                    </div>
+                    <div class="card text-center">
+                        <i class="fas fa-bell text-primary mb-4 text-4xl"></i>
+                        <h3 class="text-xl font-bold mb-2">Alertas Inteligentes</h3>
+                        <p class="text-muted">Notificaciones preventivas sobre riesgos climáticos y recomendaciones de fertilización.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION: REGISTER -->
+            <section id="register" class="section hidden">
+                <div class="flex items-center justify-center min-h-[80vh]">
+                    <div class="card w-full max-w-md">
+                        <h2 class="text-2xl font-bold mb-6 text-center">Crear Cuenta</h2>
+                        <div id="regError" class="alert alert-error hidden"></div>
+                        <div id="regSuccess" class="alert alert-success hidden"></div>
+                        <form id="regForm">
+                            <div class="form-group">
+                                <label>Nombre Completo</label>
+                                <input type="text" id="regName" placeholder="Agricultor Ejemplar" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Email</label>
+                                <input type="email" id="regEmail" placeholder="correo@ejemplo.com" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Password (mín. 6 chars)</label>
+                                <input type="password" id="regPass" placeholder="••••••••" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-full mt-4" id="btnReg">
+                                Registrarse
+                            </button>
+                        </form>
+                        <p class="text-center text-muted mt-4">
+                            ¿Ya tienes cuenta? <a href="#" onclick="navigate('login')" class="text-primary font-bold">Ingresar</a>
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION: LOGIN -->
+            <section id="login" class="section hidden">
+                <div class="flex items-center justify-center min-h-[80vh]">
+                    <div class="card w-full max-w-md">
+                        <h2 class="text-2xl font-bold mb-6 text-center">Inicia Sesión</h2>
+                        <div id="loginError" class="alert alert-error hidden"></div>
+                        <form id="loginForm">
+                            <div class="form-group">
+                                <label>Email</label>
+                                <input type="email" id="loginEmail" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Password</label>
+                                <input type="password" id="loginPass" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-full mt-4" id="btnLogin">
+                                Ingresar
+                            </button>
+                        </form>
+                        <p class="text-center text-muted mt-4">
+                            ¿No tienes cuenta? <a href="#" onclick="navigate('register')" class="text-primary font-bold">Registrarse</a>
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION: DASHBOARD -->
+            <section id="dashboard" class="section hidden">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-3xl font-bold">Visión General</h2>
+                    <span class="text-muted"><i class="fas fa-calendar"></i> <span id="currentDate"></span></span>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="card stat-card">
+                        <div class="stat-icon green"><i class="fas fa-chart-bar"></i></div>
+                        <div class="stat-value">1,240 kg</div>
+                        <div class="stat-label">Producción Estimada (Mes)</div>
+                    </div>
+                    <div class="card stat-card">
+                        <div class="stat-icon blue"><i class="fas fa-map"></i></div>
+                        <div class="stat-value">Bueno</div>
+                        <div class="stat-label">Estado Promedio Cultivos</div>
+                    </div>
+                    <div class="card stat-card">
+                        <div class="stat-icon red"><i class="fas fa-exclamation-triangle"></i></div>
+                        <div class="stat-value">2</div>
+                        <div class="stat-label">Alertas Activas</div>
+                    </div>
+                </div>
+
+                <div class="flex flex-col gap-6" style="display: grid; grid-template-columns: 2fr 1fr;">
+                    <div class="card">
+                        <h3 class="text-xl font-bold mb-4">Rendimiento Histórico</h3>
+                        <div class="chart-container">
+                            <canvas id="dashChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="flex flex-col gap-6">
+                        <div class="card">
+                            <h3 class="text-lg font-bold mb-4"><i class="fas fa-bell text-primary"></i> Notificaciones</h3>
+                            <div class="alert alert-error"><i class="fas fa-cloud-showers-heavy"></i> Posibles heladas prox. 48h.</div>
+                            <div class="alert alert-success"><i class="fas fa-check-circle"></i> Análisis del lote Norte: Excelente.</div>
+                        </div>
+                        <div class="card">
+                            <h3 class="text-lg font-bold mb-4">Acciones Rápidas</h3>
+                            <button onclick="navigate('predict')" class="btn btn-outline w-full mb-2">Nueva Predicción</button>
+                            <button onclick="navigate('upload')" class="btn btn-primary w-full">Analizar Imagen</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION: PREDICT -->
+            <section id="predict" class="section hidden">
+                <h2 class="text-3xl font-bold mb-6">Predicción de Rendimientos</h2>
+                <div class="card max-w-4xl">
+                    <form id="predictForm" class="flex flex-col gap-4">
+                        <div class="grid" style="display: grid; grid-template-columns: 1fr 1fr; gap:1rem;">
+                            <div class="form-group">
+                                <label>Tipo de Cultivo</label>
+                                <select id="pCultivo" required>
+                                    <option value="cafe">Café</option>
+                                    <option value="cacao">Cacao</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Área Sembrada (Hectáreas)</label>
+                                <input type="number" id="pArea" min="0.1" step="0.1" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Edad del Cultivo (Años)</label>
+                                <input type="number" id="pEdad" min="0" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Clima (Temperatura Promedio °C)</label>
+                                <input type="number" id="pClima" required>
+                            </div>
+                            <div class="form-group" style="grid-column: span 2;">
+                                <label>Tipo de Suelo (pH aprox)</label>
+                                <input type="number" id="pSuelo" step="0.1" required>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-full"><i class="fas fa-magic"></i> Calcular Predicción A.I.</button>
+                    </form>
+
+                    <div id="predResult" class="hidden mt-8 p-6 bg-green-50 rounded-lg border border-green-200" style="background: rgba(21, 128, 61, 0.05); border: 1px solid var(--primary);">
+                        <h3 class="text-2xl font-bold text-primary mb-4">Resultados de IA</h2>
+                        
+                        <div class="stats-grid">
+                            <div>
+                                <div class="text-muted">Producción Estimada</div>
+                                <div class="text-3xl font-bold text-primary" id="resProd"></div>
+                            </div>
+                            <div>
+                                <div class="text-muted">Nivel de Riesgo</div>
+                                <div class="text-2xl font-bold" id="resRiesgo"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-4">
+                            <h4 class="font-bold">Recomendaciones:</h4>
+                            <p id="resRecom" class="text-muted mt-1"></p>
+                        </div>
+                        
+                        <div class="chart-container mt-6">
+                            <canvas id="predictChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION: UPLOAD -->
+            <section id="upload" class="section hidden">
+                <h2 class="text-3xl font-bold mb-6">Análisis A.I. de Imágenes</h2>
+                <div class="card max-w-4xl" style="text-align: center;">
+                    <i class="fas fa-cloud-upload-alt text-primary mb-4" style="font-size: 4rem;"></i>
+                    <p class="mb-6 text-muted">Sube una foto de tu cultivo para detectar enfermedades o validar su estado actual.</p>
+                    
+                    <input type="file" id="imgUpload" accept="image/*" class="hidden">
+                    <button class="btn btn-outline mb-4" onclick="document.getElementById('imgUpload').click()">Seleccionar Imagen</button>
+                    
+                    <div>
+                        <img id="imgPreview" style="display:none; max-height:300px; margin: 0 auto; border-radius: var(--radius-md); box-shadow: var(--shadow-md);">
+                    </div>
+                    
+                    <button id="btnAnalyze" class="btn btn-primary mt-6 hidden"><i class="fas fa-search-plus"></i> Analizar Estado</button>
+                    
+                    <div id="analysisResult" class="hidden mt-6 p-4 rounded-lg">
+                        <h3 class="text-xl font-bold mb-2">Diagnóstico: <span id="diagState"></span></h3>
+                        <p id="diagText" class="text-muted"></p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION: ANALYTICS -->
+            <section id="analytics" class="section hidden">
+                <h2 class="text-3xl font-bold mb-6">Analítica Avanzada</h2>
+                <div class="card mb-6">
+                    <h3 class="text-xl font-bold mb-4">Exportación y Reportes</h3>
+                    <button class="btn btn-primary" onclick="alert('Funcionalidad de exportación CSV simulada.')"><i class="fas fa-download"></i> Exportar Datos (CSV)</button>
+                </div>
+                <!-- Mock charts container -->
+                <div class="grid gap-6" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));">
+                     <div class="card">
+                         <h3 class="text-lg font-bold mb-4">Comparativa Anual</h3>
+                         <div class="chart-container"><canvas id="anaChart1"></canvas></div>
+                     </div>
+                     <div class="card">
+                         <h3 class="text-lg font-bold mb-4">Distribución por Cultivo</h3>
+                         <div class="chart-container"><canvas id="anaChart2"></canvas></div>
+                     </div>
+                </div>
+            </section>
+
+            <!-- SECTION: COMENTARIOS -->
+            <section id="comentarios" class="section hidden">
+                <h2 class="text-3xl font-bold mb-6">Soporte y Comentarios</h2>
+                <div class="card max-w-4xl">
+                    <p class="mb-4 text-muted">Envíanos tus dudas o comentarios y nuestro equipo de agrónomos te contactará vía Formspree.</p>
+                    <form action="https://formspree.io/f/mojpbvpo" method="POST" class="flex flex-col gap-4">
+                        <div class="grid" style="display: grid; grid-template-columns: 1fr 1fr; gap:1rem;">
+                            <div class="form-group">
+                                <label>Nombre</label>
+                                <input type="text" name="nombre" placeholder="Tu Nombre" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Email</label>
+                                <input type="email" name="email" placeholder="Correo" required>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Cultivo Principal</label>
+                            <select name="cultivo">
+                                <option>Café</option>
+                                <option>Cacao</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Comentario</label>
+                            <textarea name="mensaje" placeholder="Describe tu necesidad..." rows="5" required></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-full"><i class="fas fa-paper-plane"></i> Enviar a Soporte</button>
+                    </form>
+                </div>
+            </section>
+
+            <!-- SECTION: PERFIL -->
+            <section id="perfil" class="section hidden">
+                <h2 class="text-3xl font-bold mb-6">Mi Perfil Agricultor</h2>
+                <div class="card max-w-md">
+                    <div class="text-center mb-6">
+                        <div class="stat-icon green" style="width:100px; height:100px; font-size:3rem; margin: 0 auto 1rem; border-radius: 50%;">
+                            <i class="fas fa-user-tie"></i>
+                        </div>
+                        <h3 class="text-2xl font-bold" id="profName">Usuario</h3>
+                        <p class="text-muted" id="profEmail">correo@ejemplo.com</p>
+                    </div>
+                    <hr class="mb-6" style="border-top:1px solid var(--border); border-bottom:none;">
+                    <div class="form-group">
+                        <label>Configuración de Notificaciones Automáticas</label>
+                        <select>
+                            <option>Alertas por Email y Dashboard</option>
+                            <option>Solo Dashboard</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-outline w-full text-danger mt-6" id="btnLogout" style="color:var(--danger); border-color:var(--danger)">
+                        <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
+                    </button>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- VAPI WIDGET - EXACT CODE AS REQUESTED -->
+    <vapi-widget
+      public-key="15bd8e44-da9b-4849-aaa8-b967d6d28b19"
+      assistant-id="8a9f9772-2bf2-4470-8107-f8dfcd2e1b00"
+      mode="voice"
+      theme="dark"
+      base-bg-color="#000000"
+      accent-color="#14B8A6"
+      cta-button-color="#000000"
+      cta-button-text-color="#ffffff"
+      border-radius="large"
+      size="full"
+      position="bottom-right"
+      title="Clara"
+      start-button-text="Start"
+      end-button-text="End Call"
+      chat-first-message="Hey, How can I help you today?"
+      chat-placeholder="Type your message..."
+      voice-show-transcript="true"
+      consent-required="true"
+      consent-title="Terms and conditions"
+      consent-content="By clicking &quot;Agree,&quot; and each time I interact with this AI agent, I consent to the recording, storage, and sharing of my communications with third-party service providers, and as otherwise described in our Terms of Service."
+      consent-storage-key="vapi_widget_consent"
+    > 
+    </vapi-widget>
+
+    <script src="https://unpkg.com/@vapi-ai/client-sdk-react/dist/embed/widget.umd.js" async type="text/javascript"></script>
+
+    <!-- MAIN APP LOGIC -->
+    <script>
+        // Supabase Init
+        const supabaseUrl = 'https://drohgrdzvttjbkrcrgko.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRyb2hncmR6dnR0amJrcmNyZ2tvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU2MDA2MDYsImV4cCI6MjA5MTE3NjYwNn0.559FQm6ahLKqYkhSYRQJblRjHTSK1S5_NB8z7jbh41Y';
+        const localSupabase = supabase.createClient(supabaseUrl, supabaseKey); // renamed to avoid conflict
+
+        // Elements
+        const bodyClass = document.body.classList;
+        
+        // Remove loader easily
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                document.getElementById('loader').style.opacity = '0';
+                setTimeout(() => document.getElementById('loader').style.display = 'none', 500);
+            }, 500);
+            
+            document.getElementById('currentDate').innerText = new Date().toLocaleDateString('es-ES', {weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'});
+        });
+
+        // Theme logic
+        const toggle = document.getElementById('themeToggle');
+        toggle.addEventListener('click', () => {
+            document.documentElement.classList.toggle('dark');
+        });
+
+        // Navigation Engine
+        function navigate(sectionId) {
+            document.querySelectorAll('.section').forEach(el => el.classList.add('hidden'));
+            document.getElementById(sectionId).classList.remove('hidden');
+            
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            const activeNav = document.querySelector(`.nav-item[data-target="${sectionId}"]`);
+            if(activeNav) activeNav.classList.add('active');
+            
+            // close mobile sidebar if open
+            if(window.innerWidth <= 768) {
+                document.getElementById('sidebar').classList.remove('open');
+                document.getElementById('mobileOverlay').style.display = 'none';
+            }
+            
+            // Render charts on demand if they enter view
+            if(sectionId === 'dashboard') renderDashChart();
+            if(sectionId === 'analytics') renderAnalyticsCharts();
+        }
+
+        // Mobile Menu
+        document.getElementById('mobileMenuBtn').addEventListener('click', () => {
+            document.getElementById('sidebar').classList.add('open');
+            document.getElementById('mobileOverlay').style.display = 'block';
+        });
+        document.getElementById('mobileOverlay').addEventListener('click', () => {
+            document.getElementById('sidebar').classList.remove('open');
+            document.getElementById('mobileOverlay').style.display = 'none';
+        });
+
+        let currentUser = null;
+
+        // Auth Logic
+        async function checkSession() {
+            const { data: { session } } = await localSupabase.auth.getSession();
+            handleAuthChange(session);
+            
+            localSupabase.auth.onAuthStateChange((_event, session) => {
+                handleAuthChange(session);
+            });
+        }
+
+        function handleAuthChange(session) {
+            if(session) {
+                currentUser = session.user;
+                bodyClass.remove('logged-out');
+                
+                // Set profile info
+                document.getElementById('profEmail').innerText = currentUser.email;
+                document.getElementById('profName').innerText = currentUser.user_metadata?.full_name || 'Agricultor';
+                
+                // Show dashboard 
+                const isAuthPage = ['home', 'login', 'register'].includes(getActiveSection());
+                if(isAuthPage) navigate('dashboard');
+            } else {
+                currentUser = null;
+                bodyClass.add('logged-out');
+                navigate('home');
+            }
+        }
+        
+        function getActiveSection() {
+            const active = document.querySelector('.section:not(.hidden)');
+            return active ? active.id : 'home';
+        }
+
+        // Registration form
+        document.getElementById('regForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('regEmail').value;
+            const pass = document.getElementById('regPass').value;
+            const full_name = document.getElementById('regName').value;
+            const btn = document.getElementById('btnReg');
+            const err = document.getElementById('regError');
+            
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Registrando...';
+            btn.disabled = true;
+            err.classList.add('hidden');
+            
+            const { data, error } = await localSupabase.auth.signUp({
+                email, password: pass,
+                options: { data: { full_name } }
+            });
+            
+            btn.innerHTML = 'Registrarse';
+            btn.disabled = false;
+            
+            if(error) {
+                err.innerText = error.message;
+                err.classList.remove('hidden');
+            } else {
+                document.getElementById('regSuccess').innerText = 'Cuenta creada. Iniciando sesión...';
+                document.getElementById('regSuccess').classList.remove('hidden');
+                setTimeout(() => {/* session listener catches change */}, 1000);
+            }
+        });
+
+        // Login form
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('loginEmail').value;
+            const pass = document.getElementById('loginPass').value;
+            const btn = document.getElementById('btnLogin');
+            const err = document.getElementById('loginError');
+            
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Ingresando...';
+            btn.disabled = true;
+            err.classList.add('hidden');
+            
+            const { error } = await localSupabase.auth.signInWithPassword({ email, password: pass });
+            
+            btn.innerHTML = 'Ingresar';
+            btn.disabled = false;
+            
+            if(error) {
+                err.innerText = "Credenciales incorrectas.";
+                err.classList.remove('hidden');
+            }
+        });
+
+        // Logout
+        document.getElementById('btnLogout').addEventListener('click', async () => {
+            await localSupabase.auth.signOut();
+        });
+
+        // --- PREDICTION LOGIC ---
+        let currentPredChart = null;
+        document.getElementById('predictForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const cultivo = document.getElementById('pCultivo').value;
+            const area = parseFloat(document.getElementById('pArea').value);
+            const edad = parseInt(document.getElementById('pEdad').value);
+            
+            // Mock Prediction Formula
+            // Base yield per hectare: Cafe 1200kg, Cacao 800kg
+            const base = cultivo === 'cafe' ? 1200 : 800;
+            // modify by age (prime is ~5 years)
+            const ageMod = edad < 3 ? 0.3 : (edad > 15 ? 0.6 : 1);
+            const rawYield = base * area * ageMod;
+            
+            // random chance modifier based on inputs to simulate AI computation
+            const finalYield = Math.floor(rawYield * (0.8 + Math.random() * 0.4));
+            
+            document.getElementById('resProd').innerText = finalYield + ' kg Mín / ' + Math.floor(finalYield*1.15) + " kg Max";
+            
+            // Risk logic
+            const riesgo = Math.random() > 0.6 ? 'Alto' : 'Bajo';
+            const rEl = document.getElementById('resRiesgo');
+            rEl.innerText = riesgo;
+            rEl.style.color = riesgo === 'Alto' ? 'var(--danger)' : 'var(--primary)';
+            
+            document.getElementById('resRecom').innerText = riesgo === 'Alto' 
+                ? "El clima adverso puede reducir el rendimiento en un 20%. Considera usar mallas de sombra e irrigación suplementaria." 
+                : "Condiciones óptimas. Mantener cronograma de fertilización actual.";
+            
+            document.getElementById('predResult').classList.remove('hidden');
+            
+            // Render mini chart
+            if(currentPredChart) currentPredChart.destroy();
+            const ctx = document.getElementById('predictChart').getContext('2d');
+            currentPredChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['Trim1', 'Trim2', 'Trim3', 'Trim4'],
+                    datasets: [{
+                        label: 'Proyección de Cosecha (kg)',
+                        data: [finalYield*0.1, finalYield*0.2, finalYield*0.6, finalYield*0.1],
+                        borderColor: '#22c55e',
+                        backgroundColor: 'rgba(34, 197, 94, 0.2)',
+                        fill: true, tension: 0.4
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        });
+
+        // --- IMAGE UPLOAD LOGIC ---
+        const imgInput = document.getElementById('imgUpload');
+        const imgPreview = document.getElementById('imgPreview');
+        const btnAnalyze = document.getElementById('btnAnalyze');
+        let selectedFile = null;
+
+        imgInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if(file) {
+                selectedFile = file;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    imgPreview.src = e.target.result;
+                    imgPreview.style.display = 'block';
+                    btnAnalyze.classList.remove('hidden');
+                    document.getElementById('analysisResult').classList.add('hidden');
+                }
+                reader.readAsDataURL(file);
+            }
+        });
+
+        btnAnalyze.addEventListener('click', async () => {
+            if(!selectedFile) return;
+            
+            btnAnalyze.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analizando...';
+            btnAnalyze.disabled = true;
+
+            try {
+                // 1. Upload to Supabase Storage Bucket 'cultivos'
+                const fileExt = selectedFile.name.split('.').pop();
+                const fileName = `${Math.random()}.${fileExt}`;
+                const filePath = `scans/${fileName}`;
+                
+                const { error: uploadError } = await localSupabase.storage
+                    .from('cultivos')
+                    .upload(filePath, selectedFile, { cacheControl: '3600', upsert: false });
+
+                // We ignore uploadError visually allowing prototype to work even if permissions flap
+                // but log to console.
+                if(uploadError) console.warn("Supabase Storage error (Continuing with mock AI):", uploadError);
+
+                // 2. Mock AI visual analysis
+                setTimeout(() => {
+                    const states = [
+                        { status: 'Excelente', color: '#166534', bg: '#bbf7d0', msg: 'Coloración perfecta y hojas sin machas. Continúa con los cuidados normales.'},
+                        { status: 'Bueno', color: '#15803d', bg: '#dcfce3', msg: 'La planta luce saludable. Existe una ligera deficiencia de nitrógeno, pero nada preocupante.'},
+                        { status: 'Regular', color: '#b45309', bg: '#fef3c7', msg: 'Signos tempranos de oxidación. Recomendado aplicar fungicida preventivo.'},
+                        { status: 'Crítico', color: '#b91c1c', bg: '#fee2e2', msg: 'ALERTA: Se detectan síntomas avanzados de roya del café/monilia. Aislamiento e intervención inmediata requerida.'}
+                    ];
+                    
+                    const pick = states[Math.floor(Math.random() * states.length)];
+                    
+                    const resDiv = document.getElementById('analysisResult');
+                    const spanState = document.getElementById('diagState');
+                    
+                    spanState.innerText = pick.status;
+                    spanState.style.color = pick.color;
+                    resDiv.style.backgroundColor = pick.bg;
+                    resDiv.style.border = `1px solid ${pick.color}`;
+                    document.getElementById('diagText').innerText = pick.msg;
+                    document.getElementById('diagText').style.color = pick.color;
+                    
+                    resDiv.classList.remove('hidden');
+                    btnAnalyze.innerHTML = '<i class="fas fa-check"></i> Análisis Completado';
+                }, 1500);
+
+            } catch(e) {
+                console.error(e);
+                btnAnalyze.innerHTML = 'Error. Intente de nuevo';
+                btnAnalyze.disabled = false;
+            }
+        });
+
+        // --- CHARTS LOGIC ---
+        let mainDashChart = null;
+        function renderDashChart() {
+            if(mainDashChart) return; // run once
+            const ctx = document.getElementById('dashChart');
+            if(!ctx) return;
+            mainDashChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun'],
+                    datasets: [{
+                        label: 'Historial Cosecha (kg)',
+                        data: [400, 450, 420, 600, 800, 1240],
+                        backgroundColor: '#15803d',
+                        borderRadius: 4
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+        
+        let ac1, ac2 = null;
+        function renderAnalyticsCharts() {
+            if(ac1) return; 
+            ac1 = new Chart(document.getElementById('anaChart1'), {
+                type: 'line',
+                data: { labels: ['2023', '2024', '2025(Est)', '2026(Proy)'], datasets: [{ label: 'Ingresos ($USD)', data: [12000, 15000, 14000, 19000], borderColor:'#3b82f6', tension: 0.3 }] },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+            ac2 = new Chart(document.getElementById('anaChart2'), {
+                type: 'doughnut',
+                data: { labels: ['Café', 'Cacao', 'Otros'], datasets: [{ data: [60, 30, 10], backgroundColor: ['#15803d', '#78350f', '#eab308'] }] },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+
+        // Run Initialization
+        checkSession();
+        // default to dash if auth kicks in
+    </script>
+</body>
+</html>
