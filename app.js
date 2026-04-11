@@ -107,11 +107,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   if (supabaseClient) {
     await checkAuth();
-    supabaseClient.auth.onAuthStateChange((event, session) => {
-      S.user = session?.user || null;
+    supabaseClient.auth.onAuthStateChange(async (event, session) => {
+      const { data: { user } } = await supabaseClient.auth.getUser();
+      S.user = user || null;
       updateAuthUI();
-      if (!S.user && !['inicio', 'login', 'registro'].includes(S.currentPage)) {
-        navigateTo('login');
+      if (!user && !['inicio', 'login', 'registro'].includes(S.currentPage)) {
+        window.location.href = "index.html";
       }
     });
   }
@@ -190,7 +191,7 @@ function navigateTo(page) {
   const sb = el('sidebar');
   if (sb) sb.classList.remove('mobile-open');
   // Page-specific
-  const runners = { dashboard: updateDashboard, noticias: () => renderNews('all'), biblioteca: renderLibrary, alertas: renderAlerts, asesoria: renderAdvisory, historial: renderHistory, comentarios: fetchComentarios };
+  const runners = { dashboard: updateDashboard, noticias: () => renderNews('all'), biblioteca: renderLibrary, alertas: renderAlerts, asesoria: renderAdvisory, historial: renderHistory, comentarios: fetchComentarios, configuracion: loadConfigData };
   if (runners[page]) runners[page]();
 }
 
@@ -321,9 +322,9 @@ function initCharts() {
 function updateDashboard() {
   const totalKg = S.predictions.reduce((s,p) => s + (p.kg||0), 0);
   const totHa = S.predictions.reduce((s,p) => s + (parseFloat(p.area)||0), 0);
-  setText('kpiProd', totalKg > 0 ? `${totalKg.toLocaleString()} kg` : '2,840 kg');
-  setText('kpiArea', totHa > 0 ? `${totHa.toFixed(1)} Ha` : '14.5 Ha');
-  setText('kpiAnalyses', S.analyses.length || 38);
+  setText('kpiProd', totalKg > 0 ? `${totalKg.toLocaleString()} kg` : '0 kg');
+  setText('kpiArea', totHa > 0 ? `${totHa.toFixed(1)} Ha` : '0 Ha');
+  setText('kpiAnalyses', S.analyses.length || 0);
   setText('kpiAlerts', S.alertsCount);
   renderMarketPrices();
   renderHistoryRows();
@@ -407,10 +408,19 @@ function runPrediction(e) {
 
   updatePredChart(area, kgHa, base);
 
-  const record = { date:new Date().toLocaleDateString('es-CO'), type:'Predicción IA', cultivo, area, kg:totalKg, kgHa, productivity:prod, risk, confidence, recs };
-  S.predictions.unshift(record);
-  S.historyLog.unshift(record);
-  saveStorage();
+  const record = { cultivo, area, kg:totalKg, kgHa, productivity:prod, risk, confidence, recs };
+  
+  if (supabaseClient && S.user) {
+    guardarPrediccion(record).then(() => {
+      cargarHistorial();
+    });
+  } else {
+    // Fallback if not logged in
+    const localRec = { ...record, date:new Date().toLocaleDateString('es-CO'), type:'Predicción IA', rawType:'prediccion' };
+    S.predictions.unshift(localRec);
+    S.historyLog.unshift(localRec);
+    saveStorage();
+  }
 
   showToast(`✅ Producción estimada: ${totalKg.toLocaleString()} kg`, 'success');
 }
@@ -471,13 +481,13 @@ function processImage(file) {
     const panel = el('imgResultPanel');
     if (panel) panel.innerHTML = `<div style="text-align:center;padding:2rem;"><div class="loader-spinner" style="margin:auto;"></div><p style="color:var(--muted);margin-top:1rem;font-size:.85rem;">Analizando imagen con IA...</p></div>`;
     const img = new Image();
-    img.onload = () => analyzePixels(img);
+    img.onload = () => analyzePixels(img, file);
     img.src = e.target.result;
   };
   reader.readAsDataURL(file);
 }
 
-function analyzePixels(img) {
+function analyzePixels(img, file) {
   const c = document.createElement('canvas');
   c.width = Math.min(img.width, 500); c.height = (img.height / img.width) * c.width;
   const ctx = c.getContext('2d'); ctx.drawImage(img, 0, 0, c.width, c.height);
@@ -513,11 +523,19 @@ function analyzePixels(img) {
     conditions = [{ l:'Clorofila',v:'Muy baja',c:'text-red fa-times-circle' },{ l:'Necrosis',v:'Detectada',c:'text-red fa-times-circle' },{ l:'Enfermedad',v:'Alta probabilidad',c:'text-red fa-times-circle' },{ l:'Estrés severo',v:'Confirmado',c:'text-red fa-times-circle' }];
     recs = ['⚠️ Consultar asesor agrícola profesional de inmediato','Aislar las plantas afectadas para evitar propagación','Aplicar fungicida + insecticida de amplio espectro preventivo','Evaluar viabilidad de renovación del lote afectado'];
   }
-  setTimeout(() => {
+  setTimeout(async () => {
     renderImgResult(health, status, pG, pY, pB, conditions, recs);
-    const an = { date:new Date().toLocaleDateString('es-CO'), type:'Análisis Foliar', cultivo:'Imagen', status, health, area:'-', kg:'-', productivity:health, risk: health>=55?'Bajo':health>=35?'Medio':'Alto' };
-    S.analyses.unshift(an); S.historyLog.unshift(an); saveStorage();
-    showToast(`Diagnóstico: ${status} (${health}% salud)`, health>=55?'success':health>=35?'warning':'error');
+    const resultObj = { cultivo:'Imagen', status, health, area:'-', kg:'-', productivity:health, risk: health>=55?'Bajo':health>=35?'Medio':'Alto' };
+    
+    if (supabaseClient && S.user) {
+      await guardarAnalisisImagen(file, resultObj);
+      cargarHistorial();
+    } else {
+      // Fallback
+      const an = { ...resultObj, date:new Date().toLocaleDateString('es-CO'), type:'Análisis Foliar', rawType:'imagen' };
+      S.analyses.unshift(an); S.historyLog.unshift(an); saveStorage();
+      showToast(`Diagnóstico local: ${status} (${health}% salud)`, health>=55?'success':health>=35?'warning':'error');
+    }
   }, 1600);
 }
 
@@ -706,20 +724,42 @@ function submitAdvisory(e) {
 }
 
 // ── History ──────────────────────────────────────────────────
-function renderHistory() { renderHistoryRows(); }
+function renderHistory() { 
+  if (S.user) {
+    cargarHistorial(); 
+  } else {
+    renderHistoryRows();
+  }
+}
 function renderHistoryRows() {
   const tbody = el('historyBody'); if (!tbody) return;
   if (!S.historyLog.length) {
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:3rem;color:var(--muted);"><i class="fa-solid fa-folder-open" style="font-size:2rem;display:block;margin-bottom:.75rem;"></i>Sin registros. Realiza una predicción o análisis para comenzar.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:3rem;color:var(--muted);"><i class="fa-solid fa-folder-open" style="font-size:2rem;display:block;margin-bottom:.75rem;"></i>Aún no has realizado acciones</td></tr>`;
     return;
   }
+  
+  const spanBadge = el('histCount');
+  if (spanBadge) spanBadge.textContent = `${S.historyLog.length} registros`;
+
   tbody.innerHTML = S.historyLog.map(l => {
     const rc = l.risk==='Alto'?'bg-red':l.risk==='Medio'?'bg-gold':'bg-green';
-    const tc = l.type==='Predicción IA'?'bg-blue':'bg-purple';
+    const tc = l.rawType==='prediccion'?'bg-blue':'bg-purple';
     const pc = parseInt(l.productivity)>=75?'var(--primary)':parseInt(l.productivity)>=50?'var(--gold)':'var(--red)';
+    const icon = l.rawType==='imagen' ? '<i class="fa-solid fa-camera"></i>' : '<i class="fa-solid fa-robot"></i>';
+    
+    // Thumbnail para imágenes
+    const thumbStr = (l.rawType === 'imagen' && l.imageUrl) 
+      ? `<div style="width:36px;height:36px;border-radius:4px;background:url('${l.imageUrl}') center/cover;margin-right:8px;border:1px solid var(--border);"></div>`
+      : '';
+
     return `<tr>
       <td style="color:var(--muted);font-size:.78rem;">${l.date}</td>
-      <td><span class="badge ${tc}">${l.type}</span></td>
+      <td>
+        <div style="display:flex;align-items:center;">
+          ${thumbStr}
+          <span class="badge ${tc}" style="display:inline-flex;gap:4px;align-items:center;">${icon} ${l.type}</span>
+        </div>
+      </td>
       <td style="font-weight:600;">${l.cultivo||'-'}</td>
       <td>${l.area!=='-'&&l.area?l.area+' Ha':'-'}</td>
       <td style="font-weight:700;color:var(--primary);">${l.kg&&l.kg!=='-'?parseFloat(l.kg).toLocaleString()+' kg':'-'}</td>
@@ -808,9 +848,14 @@ window.addEventListener('load', () => { initImageUpload(); syncAlertBadge(); });
 async function checkAuth() {
   if (!supabaseClient) return;
   try {
-    const { data: { session } } = await supabaseClient.auth.getSession();
-    S.user = session?.user || null;
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    S.user = user || null;
     updateAuthUI();
+    
+    // Proteger rutas
+    if (!user && !['inicio', 'login', 'registro'].includes(S.currentPage)) {
+      window.location.href = "index.html";
+    }
   } catch (e) { console.error('Auth error:', e); }
 }
 
@@ -904,16 +949,27 @@ async function handleRegister(e) {
   }
 }
 
-async function handleLogout() {
-  if (!supabaseClient) return;
+async function logout() {
+  console.log("Cerrando sesión...");
+
   const { error } = await supabaseClient.auth.signOut();
+
   if (error) {
-    showToast('Error al cerrar sesión', 'error');
+    alert("Error al cerrar sesión");
+    console.error(error);
   } else {
-    showToast('Sesión cerrada', 'success');
-    navigateTo('login');
+    localStorage.clear();
+    sessionStorage.clear();
+    window.location.href = "index.html";
   }
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+  const btn = document.getElementById("logoutBtn");
+  if (btn) btn.addEventListener("click", logout);
+});
+
+async function handleLogout() { logout(); }
 
 // ── Comentarios ──────────────────────────────────────────────
 async function fetchComentarios() {
@@ -989,3 +1045,321 @@ async function submitComentario(e) {
     btn.disabled = false;
   }
 }
+
+// ── Configuración (Settings) ─────────────────────────────────
+
+async function loadConfigData() {
+  if (!supabaseClient) return;
+  const btn = el('btn-save-profile');
+  if (btn) btn.disabled = true;
+
+  try {
+    const { data: { user }, error: authErr } = await supabaseClient.auth.getUser();
+    if (authErr || !user) throw new Error("No autenticado");
+
+    // Llenar header del perfil
+    const initials = (user.user_metadata?.full_name || user.email || 'U').substring(0,2).toUpperCase();
+    setText('cfg-avatar-initials', initials);
+    setText('cfg-profile-email', user.email);
+
+    // Obtener perfil desde base de datos
+    const { data: profile, error } = await supabaseClient
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single();
+
+    if (error && error.code !== 'PGRST116') throw error; // Ignorar si no existe (PGRST116)
+
+    // Setear valores en DOM
+    el('cfg-name').value = profile?.nombre || user.user_metadata?.full_name || '';
+    el('cfg-email').value = profile?.email || user.email || '';
+    el('cfg-city').value = profile?.ciudad || '';
+    
+    setText('cfg-profile-name', el('cfg-name').value || 'Usuario');
+
+    // Preferencias
+    if (profile?.preferencias) {
+      const prefs = profile.preferencias;
+      if (prefs.darkmode !== undefined) el('cfg-darkmode').checked = prefs.darkmode;
+      if (prefs.alerts !== undefined) el('cfg-alerts').checked = prefs.alerts;
+      if (prefs.weatherNotif !== undefined) el('cfg-weather-notif').checked = prefs.weatherNotif;
+      if (prefs.sidebar !== undefined) el('cfg-sidebar').checked = prefs.sidebar;
+      if (prefs.sounds !== undefined) el('cfg-sounds').checked = prefs.sounds;
+    }
+    
+    // API Keys (simulado en DB)
+    if (profile?.api_keys) {
+      if (profile.api_keys.openweather) {
+        const owKey = profile.api_keys.openweather;
+        // En frontend simularemos enmascarar la clave
+        el('cfg-openweather').value = '*****' + owKey.substring(owKey.length - 4);
+      }
+      if (profile.api_keys.weatherCity) el('cfg-weather-city').value = profile.api_keys.weatherCity;
+      if (profile.api_keys.supabaseUrl) el('cfg-supabase-url').value = profile.api_keys.supabaseUrl;
+    }
+
+  } catch (err) {
+    console.error("Error cargando configuración:", err);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function saveProfile() {
+  if (!supabaseClient) return;
+  
+  const name = val('cfg-name').trim();
+  const email = val('cfg-email').trim();
+  const city = val('cfg-city').trim();
+
+  if (!name || !email || !city) {
+    showToast("Por favor completa todos los campos del perfil", "warning");
+    return;
+  }
+
+  // Validación básica de email
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailPattern.test(email)) {
+    showToast("El correo electrónico no es válido", "warning");
+    return;
+  }
+
+  const btn = el('btn-save-profile');
+  const ogHtml = btn.innerHTML;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Guardando...';
+  btn.disabled = true;
+
+  try {
+    const { data: { user }, error: authErr } = await supabaseClient.auth.getUser();
+    if (authErr || !user) throw new Error("No autenticado");
+
+    const updates = {
+      id: user.id,
+      nombre: name,
+      email: email,
+      ciudad: city,
+      updated_at: new Date().toISOString()
+    };
+
+    const { error } = await supabaseClient
+      .from('profiles')
+      .upsert(updates); // Usamos upsert por si no existía
+
+    if (error) throw error;
+
+    setText('cfg-profile-name', name);
+    setText('cfg-profile-email', email);
+    setText('cfg-avatar-initials', name.substring(0,2).toUpperCase());
+    
+    showToast("Datos guardados correctamente", "success");
+
+  } catch (err) {
+    console.error("Error guardando perfil:", err);
+    showToast("Error al guardar perfil", "error");
+  } finally {
+    btn.innerHTML = ogHtml;
+    btn.disabled = false;
+  }
+}
+
+async function savePreferences() {
+  if (!supabaseClient) return;
+  
+  try {
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    if (!user) return;
+
+    const prefs = {
+      darkmode: el('cfg-darkmode')?.checked || false,
+      alerts: el('cfg-alerts')?.checked || false,
+      weatherNotif: el('cfg-weather-notif')?.checked || false,
+      sidebar: el('cfg-sidebar')?.checked || false,
+      sounds: el('cfg-sounds')?.checked || false,
+    };
+
+    // Actualizar base de datos
+    await supabaseClient
+      .from('profiles')
+      .update({ preferencias: prefs })
+      .eq('id', user.id);
+      
+    // Apply theme persistence
+    localStorage.setItem('agv_theme', prefs.darkmode ? 'dark' : 'light');
+    localStorage.setItem('agv_sidebar', prefs.sidebar ? 'collapsed' : 'expanded');
+
+  } catch (err) {
+    console.error("Error guardando preferencias:", err);
+  }
+}
+
+async function saveApiKeys() {
+  if (!supabaseClient) return;
+  
+  const ow = val('cfg-openweather').trim();
+  const wc = val('cfg-weather-city').trim();
+  const su = val('cfg-supabase-url').trim();
+  
+  const btn = el('btn-save-keys');
+  const ogHtml = btn.innerHTML;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Guardando...';
+  btn.disabled = true;
+
+  try {
+    const { data: { user }, error: authErr } = await supabaseClient.auth.getUser();
+    if (authErr || !user) throw new Error("No autenticado");
+
+    const { data: profile } = await supabaseClient
+      .from('profiles')
+      .select('api_keys')
+      .eq('id', user.id)
+      .single();
+
+    let actualOwToSave = ow;
+    if (ow.startsWith('*****') && profile?.api_keys?.openweather) {
+      actualOwToSave = profile.api_keys.openweather;
+    }
+
+    const keys = {
+      openweather: actualOwToSave,
+      weatherCity: wc,
+      supabaseUrl: su
+    };
+
+    const { error } = await supabaseClient
+      .from('profiles')
+      .update({ api_keys: keys })
+      .eq('id', user.id);
+
+    if (error) throw error;
+    
+    // Enmascarar al guardar
+    if (actualOwToSave) {
+      el('cfg-openweather').value = '*****' + actualOwToSave.substring(actualOwToSave.length - 4);
+    }
+
+    showToast("Integraciones API guardadas", "success");
+
+  } catch (err) {
+    console.error("Error guardando API Keys:", err);
+    showToast("Error al guardar integraciones", "error");
+  } finally {
+    btn.innerHTML = ogHtml;
+    btn.disabled = false;
+  }
+}
+
+// ── Supabase History ─────────────────────────────────────────
+
+async function guardarPrediccion(resultado) {
+  const { data: { user } } = await supabaseClient.auth.getUser();
+
+  if (!user) return;
+
+  console.log("Guardando predicción...");
+
+  const { error } = await supabaseClient.from('historial_uso').insert({
+    user_id: user.id,
+    tipo: "prediccion",
+    resultado: typeof resultado === 'string' ? resultado : JSON.stringify(resultado),
+    fecha: new Date().toISOString()
+  });
+
+  if (error) {
+    console.error(error);
+  } else {
+    console.log("Historial guardado correctamente");
+  }
+}
+
+async function guardarAnalisisImagen(file, resultado) {
+  const { data: { user } } = await supabaseClient.auth.getUser();
+
+  if (!user) return;
+
+  console.log("Guardando imagen...");
+
+  const fileName = `${user.id}/${Date.now()}_${file.name}`;
+
+  // Subir imagen
+  const { error: uploadError } = await supabaseClient.storage
+    .from('imagenes')
+    .upload(fileName, file);
+
+  if (uploadError) {
+    console.error(uploadError);
+    return;
+  }
+
+  // Obtener URL
+  const { data } = supabaseClient.storage
+    .from('imagenes')
+    .getPublicUrl(fileName);
+
+  const url = data.publicUrl;
+
+  // Guardar en historial
+  const { error } = await supabaseClient.from('historial_uso').insert({
+    user_id: user.id,
+    tipo: "imagen",
+    resultado: typeof resultado === 'string' ? resultado : JSON.stringify(resultado),
+    imagen_url: url,
+    fecha: new Date().toISOString()
+  });
+
+  if (error) {
+    console.error("Error guardando historial:", error);
+  } else {
+    console.log("Historial guardado correctamente");
+  }
+}
+
+async function cargarHistorial() {
+  const { data: { user } } = await supabaseClient.auth.getUser();
+
+  if (!user) return;
+
+  const { data, error } = await supabaseClient
+    .from('historial_uso')
+    .select('*')
+    .eq('user_id', user.id)
+    .order('fecha', { ascending: false });
+
+  console.log("Historial:", data);
+
+  if (error) {
+    console.error(error);
+    const tbody = el('historyBody');
+    if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:3rem;color:var(--red);"><i class="fa-solid fa-triangle-exclamation"></i> Error al cargar datos</td></tr>`;
+    return;
+  }
+
+  // Transform logic to display in the UI correctly
+  if (data) {
+    S.historyLog = data.map(row => {
+      let res = {};
+      try { res = JSON.parse(row.resultado || '{}'); } catch(e){}
+      return {
+        id_db: row.id,
+        date: new Date(row.fecha).toLocaleDateString('es-CO', { year:'numeric', month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' }),
+        type: row.tipo === 'prediccion' ? 'Predicción IA' : 'Análisis Foliar',
+        rawType: row.tipo,
+        imageUrl: row.imagen_url,
+        cultivo: res.cultivo || (row.tipo === 'imagen' ? 'Imagen' : '-'),
+        area: res.area || '-',
+        kg: res.kg || '-',
+        productivity: res.productivity || res.health || '-',
+        risk: res.risk || '-',
+        status: res.status || '-'
+      };
+    });
+    
+    S.predictions = S.historyLog.filter(x => x.rawType === 'prediccion');
+    S.analyses = S.historyLog.filter(x => x.rawType === 'imagen');
+
+    renderHistoryRows();
+    updateDashboard();
+  }
+}
+
+

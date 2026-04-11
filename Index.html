@@ -1060,26 +1060,26 @@
         <div class="card">
           <div class="card-title" style="margin-bottom:1.25rem;"><i class="fa-solid fa-user text-green" style="margin-right:.4rem;"></i>Perfil de Usuario</div>
           <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;">
-            <div class="nav-avatar" style="width:56px;height:56px;font-size:1.1rem;">JF</div>
+            <div class="nav-avatar" id="cfg-avatar-initials" style="width:56px;height:56px;font-size:1.1rem;">U</div>
             <div>
-              <div style="font-weight:700;color:var(--text);">Juan Fernández</div>
-              <div style="font-size:.8rem;color:var(--muted);">juan.fernandez@agrotech.co</div>
+              <div id="cfg-profile-name" style="font-weight:700;color:var(--text);">Cargando...</div>
+              <div id="cfg-profile-email" style="font-size:.8rem;color:var(--muted);">Cargando...</div>
               <span class="badge bg-green mt-1">Plan Pro · Activo</span>
             </div>
           </div>
           <div class="form-group">
             <label class="form-label">Nombre completo</label>
-            <input type="text" class="form-control" value="Juan Fernández">
+            <input type="text" id="cfg-name" class="form-control" value="" required>
           </div>
           <div class="form-group">
             <label class="form-label">Correo electrónico</label>
-            <input type="email" class="form-control" value="juan.fernandez@agrotech.co">
+            <input type="email" id="cfg-email" class="form-control" value="" required>
           </div>
           <div class="form-group">
             <label class="form-label">Ciudad / Región</label>
-            <input type="text" id="cfg-city" class="form-control" value="Bogota">
+            <input type="text" id="cfg-city" class="form-control" value="" required>
           </div>
-          <button class="btn btn-primary btn-sm" onclick="showToast('Perfil actualizado correctamente','success')"><i class="fa-solid fa-save"></i> Guardar cambios</button>
+          <button id="btn-save-profile" class="btn btn-primary btn-sm" onclick="saveProfile()"><i class="fa-solid fa-save"></i> Guardar cambios</button>
         </div>
 
         <!-- Preferences -->
@@ -1090,35 +1090,35 @@
               <div class="setting-lbl">Modo Oscuro</div>
               <div class="setting-desc">Tema oscuro para reducir fatiga visual</div>
             </div>
-            <label class="toggle-sw"><input type="checkbox" checked onchange="toggleTheme()"><span class="toggle-slider"></span></label>
+            <label class="toggle-sw"><input type="checkbox" id="cfg-darkmode" checked onchange="toggleTheme(); savePreferences()"><span class="toggle-slider"></span></label>
           </div>
           <div class="setting-row">
             <div>
               <div class="setting-lbl">Alertas por defecto</div>
               <div class="setting-desc">Mostrar alertas automáticas al iniciar</div>
             </div>
-            <label class="toggle-sw"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+            <label class="toggle-sw"><input type="checkbox" id="cfg-alerts" onchange="savePreferences()"><span class="toggle-slider"></span></label>
           </div>
           <div class="setting-row">
             <div>
               <div class="setting-lbl">Notificaciones de clima</div>
               <div class="setting-desc">Alertas automáticas sobre cambios climáticos</div>
             </div>
-            <label class="toggle-sw"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+            <label class="toggle-sw"><input type="checkbox" id="cfg-weather-notif" onchange="savePreferences()"><span class="toggle-slider"></span></label>
           </div>
           <div class="setting-row">
             <div>
               <div class="setting-lbl">Sidebar colapsado</div>
               <div class="setting-desc">Menú lateral compacto por defecto</div>
             </div>
-            <label class="toggle-sw"><input type="checkbox" onchange="toggleSidebar()"><span class="toggle-slider"></span></label>
+            <label class="toggle-sw"><input type="checkbox" id="cfg-sidebar" onchange="toggleSidebar(); savePreferences()"><span class="toggle-slider"></span></label>
           </div>
           <div class="setting-row">
             <div>
               <div class="setting-lbl">Sonidos de interfaz</div>
               <div class="setting-desc">Efectos de audio en acciones importantes</div>
             </div>
-            <label class="toggle-sw"><input type="checkbox"><span class="toggle-slider"></span></label>
+            <label class="toggle-sw"><input type="checkbox" id="cfg-sounds" onchange="savePreferences()"><span class="toggle-slider"></span></label>
           </div>
         </div>
 
@@ -1127,18 +1127,18 @@
           <div class="card-title" style="margin-bottom:1.25rem;"><i class="fa-solid fa-key text-gold" style="margin-right:.4rem;"></i>Integraciones API</div>
           <div class="form-group">
             <label class="form-label">OpenWeather API Key</label>
-            <input type="password" class="form-control" value="bd5e378503939ddaee76f12ad7a97608" placeholder="Tu clave de OpenWeather">
+            <input type="text" id="cfg-openweather" class="form-control" placeholder="Tu clave de OpenWeather (ej. *****1234)">
             <div class="form-hint"><i class="fa-solid fa-circle-info"></i> Obtén tu clave gratuita en openweathermap.org</div>
           </div>
           <div class="form-group">
             <label class="form-label">Ciudad para clima</label>
-            <input type="text" class="form-control" placeholder="Bogota, CO">
+            <input type="text" id="cfg-weather-city" class="form-control" placeholder="Bogota, CO">
           </div>
           <div class="form-group">
             <label class="form-label">Supabase URL (Storage)</label>
-            <input type="url" class="form-control" placeholder="https://xxxx.supabase.co">
+            <input type="url" id="cfg-supabase-url" class="form-control" placeholder="https://xxxx.supabase.co">
           </div>
-          <button class="btn btn-primary btn-sm" onclick="showToast('API Keys guardadas','success')"><i class="fa-solid fa-plug"></i> Guardar integraciones</button>
+          <button id="btn-save-keys" class="btn btn-primary btn-sm" onclick="saveApiKeys()"><i class="fa-solid fa-plug"></i> Guardar integraciones</button>
         </div>
 
         <!-- Stats -->
