@@ -9,6 +9,10 @@ const CFG = {
   country: 'CO',
 };
 
+let supabaseClient = null;
+const supabaseUrl = 'https://drohgrdzvttjbkrcrgko.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRyb2hncmR6dnR0amJrcmNyZ2tvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU2MDA2MDYsImV4cCI6MjA5MTE3NjYwNn0.559FQm6ahLKqYkhSYRQJblRjHTSK1S5_NB8z7jbh41Y';
+
 // ── State ────────────────────────────────────────────────────
 const S = {
   dark: true,
@@ -20,6 +24,7 @@ const S = {
   historyLog: [],
   libFilter: 'all',
   libSearch: '',
+  user: null,
 };
 
 // ── Library Dataset ──────────────────────────────────────────
@@ -98,11 +103,23 @@ const EXPERTS = [
 ];
 
 // ── Initialization ───────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  if (window.supabase) supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
   loadStorage();
   applyTheme();
   applySidebar();
   createToastContainer();
+
+  if (supabaseClient) {
+    await checkAuth();
+    supabaseClient.auth.onAuthStateChange((event, session) => {
+      S.user = session?.user || null;
+      updateAuthUI();
+      if (!S.user && !['inicio', 'login', 'registro'].includes(S.currentPage)) {
+        navigateTo('login');
+      }
+    });
+  }
 
   setTimeout(() => {
     const loader = document.getElementById('agro-loader');
@@ -160,6 +177,12 @@ function toggleMobileSidebar() {
 
 // ── Navigation ───────────────────────────────────────────────
 function navigateTo(page) {
+  const protectedPages = ['dashboard', 'prediccion', 'imagen', 'alertas', 'asesoria', 'historial', 'configuracion', 'comentarios'];
+  if (protectedPages.includes(page) && !S.user) {
+    showToast('Debes iniciar sesión para acceder', 'warning');
+    page = 'login';
+  }
+  
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.sb-item').forEach(i => i.classList.remove('active'));
   const pg = el(`page-${page}`);
@@ -172,7 +195,7 @@ function navigateTo(page) {
   const sb = el('sidebar');
   if (sb) sb.classList.remove('mobile-open');
   // Page-specific
-  const runners = { dashboard: updateDashboard, noticias: () => renderNews('all'), biblioteca: renderLibrary, alertas: renderAlerts, asesoria: renderAdvisory, historial: renderHistory };
+  const runners = { dashboard: updateDashboard, noticias: () => renderNews('all'), biblioteca: renderLibrary, alertas: renderAlerts, asesoria: renderAdvisory, historial: renderHistory, comentarios: fetchComentarios };
   if (runners[page]) runners[page]();
 }
 
@@ -785,3 +808,189 @@ document.addEventListener('input', e => {
 
 // Init image upload after DOM ready
 window.addEventListener('load', () => { initImageUpload(); syncAlertBadge(); });
+
+// ── Supabase & Auth Logic ────────────────────────────────────
+async function checkAuth() {
+  if (!supabaseClient) return;
+  try {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    S.user = session?.user || null;
+    updateAuthUI();
+  } catch (e) { console.error('Auth error:', e); }
+}
+
+function updateAuthUI() {
+  const authEls = document.querySelectorAll('.auth-only');
+  const noAuthEls = document.querySelectorAll('.no-auth-only');
+  if (S.user) {
+    authEls.forEach(e => { if (e) e.style.display = ''; });
+    noAuthEls.forEach(e => { if (e) e.style.display = 'none'; });
+    
+    // Update user info in sidebar
+    const nameStr = S.user.user_metadata?.first_name || S.user.email.split('@')[0];
+    if(el('sbUserName')) el('sbUserName').textContent = nameStr;
+    if(el('sbUserInitials')) el('sbUserInitials').textContent = nameStr.substring(0, 2).toUpperCase();
+  } else {
+    authEls.forEach(e => { if (e) e.style.display = 'none'; });
+    noAuthEls.forEach(e => { if (e) e.style.display = ''; });
+  }
+}
+
+async function handleLogin(e) {
+  e.preventDefault();
+  const email = el('logEmail').value;
+  const password = el('logPass').value;
+  const btn = el('btnLogin');
+  const originalHtml = btn.innerHTML;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Ingresando...';
+  btn.disabled = true;
+
+  try {
+    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+    if (error) {
+      if (window.Swal) Swal.fire({ icon: 'error', title: 'Error de acceso', text: error.message, confirmButtonColor: 'var(--primary)' });
+      else showToast(error.message, 'error');
+    } else {
+      showToast('Sesión iniciada exitosamente', 'success');
+      e.target.reset();
+      navigateTo('dashboard');
+    }
+  } catch (err) {
+    showToast('Ocurrió un error inesperado', 'error');
+  } finally {
+    btn.innerHTML = originalHtml;
+    btn.disabled = false;
+  }
+}
+
+async function handleRegister(e) {
+  e.preventDefault();
+  const name = el('regName').value;
+  const email = el('regEmail').value;
+  const password = el('regPass').value;
+  const btn = el('btnReg');
+  const originalHtml = btn.innerHTML;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Registrando...';
+  btn.disabled = true;
+
+  try {
+    const { data, error } = await supabaseClient.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { first_name: name, nombre: name }
+      }
+    });
+
+    if (error) {
+      if (window.Swal) Swal.fire({ icon: 'error', title: 'Error al registrar', text: error.message, confirmButtonColor: 'var(--primary)' });
+      else showToast(error.message, 'error');
+    } else {
+      if (data?.user) {
+        try {
+          await supabaseClient.from('users').insert([{
+              id: data.user.id,
+              email: email,
+              first_name: name
+          }]);
+        } catch(userErr) { console.info("public.users sync skipped."); }
+      }
+      if (window.Swal) Swal.fire({ icon: 'success', title: '¡Registro exitoso!', text: 'Tu cuenta ha sido creada.', confirmButtonColor: 'var(--primary)' });
+      showToast('Registro exitoso', 'success');
+      e.target.reset();
+      updateAuthUI();
+      navigateTo('dashboard');
+    }
+  } catch (err) {
+    showToast('Ocurrió un error inesperado', 'error');
+  } finally {
+    btn.innerHTML = originalHtml;
+    btn.disabled = false;
+  }
+}
+
+async function handleLogout() {
+  if (!supabaseClient) return;
+  const { error } = await supabaseClient.auth.signOut();
+  if (error) {
+    showToast('Error al cerrar sesión', 'error');
+  } else {
+    showToast('Sesión cerrada', 'success');
+    navigateTo('login');
+  }
+}
+
+// ── Comentarios ──────────────────────────────────────────────
+async function fetchComentarios() {
+  if (!supabaseClient) return;
+  const feed = el('commentsFeed');
+  if (!feed) return;
+  
+  feed.innerHTML = '<div style="text-align:center;padding:3rem;"><div class="loader-spinner" style="margin:auto;"></div></div>';
+  
+  try {
+    const { data, error } = await supabaseClient
+      .from('comentarios')
+      .select('*')
+      .order('fecha', { ascending: false });
+      
+    if (error) throw error;
+    
+    if (!data || data.length === 0) {
+      feed.innerHTML = '<div style="text-align:center;padding:3rem;color:var(--muted);"><i class="fa-solid fa-comment-slash" style="font-size:2rem;margin-bottom:1rem;display:block;"></i>No hay comentarios aún. ¡Sé el primero!</div>';
+      return;
+    }
+    
+    feed.innerHTML = data.map(c => `
+      <div class="cmt-card">
+        <div class="cmt-header">
+          <div class="cmt-avatar">${(c.nombre || 'U').substring(0, 2).toUpperCase()}</div>
+          <div>
+            <div class="cmt-author">${c.nombre || 'Usuario'}</div>
+            <div class="cmt-date">${new Date(c.fecha).toLocaleString()}</div>
+          </div>
+        </div>
+        <div class="cmt-body">${c.comentario}</div>
+      </div>
+    `).join('');
+  } catch (err) {
+    feed.innerHTML = '<div class="alert-card critical"><i class="fa-solid fa-triangle-exclamation al-icon"></i><div class="al-body"><div class="al-title">Error al cargar</div><div class="al-msg">No se pudieron cargar los comentarios.</div></div></div>';
+  }
+}
+
+async function submitComentario(e) {
+  e.preventDefault();
+  if (!S.user) {
+    showToast('Debes iniciar sesión para comentar', 'warning');
+    return;
+  }
+  
+  const text = el('cmtText').value;
+  if (!text.trim()) return;
+  
+  const btn = el('btnCmt');
+  const originalHtml = btn.innerHTML;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+  btn.disabled = true;
+  
+  try {
+    const { data, error } = await supabaseClient
+      .from('comentarios')
+      .insert([{
+        user_id: S.user.id,
+        nombre: S.user.user_metadata?.first_name || S.user.email.split('@')[0],
+        comentario: text
+      }]);
+      
+    if (error) throw error;
+    
+    el('commentForm').reset();
+    showToast('Comentario publicado', 'success');
+    fetchComentarios(); // Reload feed
+  } catch (err) {
+    showToast('Error al publicar comentario', 'error');
+  } finally {
+    btn.innerHTML = originalHtml;
+    btn.disabled = false;
+  }
+}

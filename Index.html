@@ -81,6 +81,12 @@
       <span class="sb-badge" id="sbAlertBadge">3</span>
     </div>
 
+    <div class="sb-section-label">Comunidad</div>
+    <div class="sb-item auth-only" data-page="comentarios" onclick="navigateTo('comentarios')" style="display:none;">
+      <div class="sb-item-icon"><i class="fa-solid fa-comments"></i></div>
+      <span class="sb-label">Comentarios</span>
+    </div>
+
     <div class="sb-section-label">Soporte</div>
 
     <div class="sb-item" data-page="asesoria" onclick="navigateTo('asesoria')">
@@ -98,12 +104,16 @@
   </nav>
 
   <div class="sidebar-foot">
-    <div class="sb-user">
-      <div class="sb-user-avatar">JF</div>
+    <div class="sb-user auth-only" id="sbUserInfo" style="display:none;">
+      <div class="sb-user-avatar" id="sbUserInitials">User</div>
       <div class="sb-user-info">
-        <div class="sb-user-name">Juan Fernández</div>
-        <div class="sb-user-role">Agrónomo · Plan Pro</div>
+        <div class="sb-user-name" id="sbUserName">Usuario</div>
+        <div class="sb-user-role" onclick="handleLogout()" style="cursor:pointer;color:var(--red);"><i class="fa-solid fa-right-from-bracket"></i> Cerrar sesión</div>
       </div>
+    </div>
+    <div class="sb-actions no-auth-only" style="display:flex;flex-direction:column;gap:.5rem;width:100%;padding:0 .5rem;">
+      <button class="btn btn-primary btn-sm btn-block" onclick="navigateTo('login')">Iniciar Sesión</button>
+      <button class="btn btn-outline btn-sm btn-block" onclick="navigateTo('registro')">Registrarse</button>
     </div>
   </div>
 </aside>
@@ -136,6 +146,110 @@
 
 <!-- ══════════════════════ APP CONTAINER ══════════════════════ -->
 <div class="app-wrap" id="appWrap">
+
+  <!-- ━━━━━━━━━━━━━━━━━━ PAGE: LOGIN ━━━━━━━━━━━━━━━━━━ -->
+  <div class="page" id="page-login">
+    <div style="display:flex;align-items:center;justify-content:center;min-height:85vh;">
+      <div class="auth-card card" style="max-width:400px;width:100%;padding:2.5rem 2rem;">
+        <div style="text-align:center;margin-bottom:2rem;">
+          <div class="sb-brand-icon" style="font-size:2rem;margin-bottom:1rem;color:var(--primary);"><i class="fa-solid fa-leaf"></i></div>
+          <h2 style="font-size:1.5rem;font-weight:700;margin-bottom:.5rem;">Bienvenido de nuevo</h2>
+          <p style="color:var(--muted);font-size:.9rem;">Ingresa a tu cuenta de AgroVision</p>
+        </div>
+        <form id="loginForm" onsubmit="handleLogin(event)">
+          <div class="form-group">
+            <label class="form-label">Correo electrónico</label>
+            <div class="input-icon-wrap" style="position:relative;">
+              <i class="fa-solid fa-envelope" style="position:absolute;left:1rem;top:50%;transform:translateY(-50%);color:var(--muted);"></i>
+              <input type="email" id="logEmail" class="form-control" style="padding-left:2.5rem;" required placeholder="tucorreo@ejemplo.com">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Contraseña</label>
+            <div class="input-icon-wrap" style="position:relative;">
+              <i class="fa-solid fa-lock" style="position:absolute;left:1rem;top:50%;transform:translateY(-50%);color:var(--muted);"></i>
+              <input type="password" id="logPass" class="form-control" style="padding-left:2.5rem;" required placeholder="••••••••">
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary btn-block btn-lg mt-3" id="btnLogin"><i class="fa-solid fa-right-to-bracket"></i> Iniciar Sesión</button>
+        </form>
+        <div style="text-align:center;margin-top:1.5rem;font-size:.9rem;color:var(--muted);">
+          ¿No tienes una cuenta? <span style="color:var(--primary);cursor:pointer;font-weight:600;" onclick="navigateTo('registro')">Regístrate</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ━━━━━━━━━━━━━━━━━━ PAGE: REGISTRO ━━━━━━━━━━━━━━━━━━ -->
+  <div class="page" id="page-registro">
+    <div style="display:flex;align-items:center;justify-content:center;min-height:85vh;">
+      <div class="auth-card card" style="max-width:400px;width:100%;padding:2.5rem 2rem;">
+        <div style="text-align:center;margin-bottom:2rem;">
+          <div class="sb-brand-icon" style="font-size:2rem;margin-bottom:1rem;color:var(--primary);"><i class="fa-solid fa-leaf"></i></div>
+          <h2 style="font-size:1.5rem;font-weight:700;margin-bottom:.5rem;">Crea tu cuenta</h2>
+          <p style="color:var(--muted);font-size:.9rem;">Comienza a optimizar tus cultivos</p>
+        </div>
+        <form id="regForm" onsubmit="handleRegister(event)">
+          <div class="form-group">
+            <label class="form-label">Nombre Completo</label>
+            <div class="input-icon-wrap" style="position:relative;">
+              <i class="fa-solid fa-user" style="position:absolute;left:1rem;top:50%;transform:translateY(-50%);color:var(--muted);"></i>
+              <input type="text" id="regName" class="form-control" style="padding-left:2.5rem;" required placeholder="Juan Pérez">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Correo electrónico</label>
+            <div class="input-icon-wrap" style="position:relative;">
+              <i class="fa-solid fa-envelope" style="position:absolute;left:1rem;top:50%;transform:translateY(-50%);color:var(--muted);"></i>
+              <input type="email" id="regEmail" class="form-control" style="padding-left:2.5rem;" required placeholder="tucorreo@ejemplo.com">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Contraseña</label>
+            <div class="input-icon-wrap" style="position:relative;">
+              <i class="fa-solid fa-lock" style="position:absolute;left:1rem;top:50%;transform:translateY(-50%);color:var(--muted);"></i>
+              <input type="password" id="regPass" class="form-control" style="padding-left:2.5rem;" required placeholder="••••••••" minlength="6">
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary btn-block btn-lg mt-3" id="btnReg"><i class="fa-solid fa-user-plus"></i> Registrarse</button>
+        </form>
+        <div style="text-align:center;margin-top:1.5rem;font-size:.9rem;color:var(--muted);">
+          ¿Ya tienes cuenta? <span style="color:var(--primary);cursor:pointer;font-weight:600;" onclick="navigateTo('login')">Inicia sesión</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ━━━━━━━━━━━━━━━━━━ PAGE: COMENTARIOS ━━━━━━━━━━━━━━━━━━ -->
+  <div class="page" id="page-comentarios">
+    <div class="section-wrap">
+      <div class="section-hd">
+        <h1 class="section-title"><i class="fa-solid fa-comments text-primary" style="margin-right:.5rem;"></i>Comunidad</h1>
+        <p class="section-sub">Comparte tus experiencias, dudas y comentarios con otros agricultores.</p>
+      </div>
+      <div class="comments-grid" style="display:grid;grid-template-columns:1fr;gap:1.5rem;max-width:800px;margin:0 auto;">
+        
+        <!-- Formulario Comentario -->
+        <div class="card" style="border:1px solid var(--primary);box-shadow:0 8px 30px rgba(34,197,94,0.1);">
+          <div style="display:flex;gap:1rem;align-items:flex-start;">
+            <div class="nav-avatar" id="cmtAvatar" style="flex-shrink:0;">U</div>
+            <form id="commentForm" onsubmit="submitComentario(event)" style="flex:1;">
+              <textarea id="cmtText" class="form-control" rows="3" required placeholder="Escribe tu comentario o pregunta aquí..." style="resize:none;margin-bottom:1rem;"></textarea>
+              <div style="display:flex;justify-content:flex-end;">
+                <button type="submit" class="btn btn-primary" id="btnCmt"><i class="fa-solid fa-paper-plane"></i> Publicar</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- Feed de Comentarios -->
+        <div id="commentsFeed" style="display:flex;flex-direction:column;gap:1.25rem;">
+          <div style="text-align:center;padding:3rem;"><div class="loader-spinner" style="margin:auto;"></div></div>
+        </div>
+
+      </div>
+    </div>
+  </div>
 
   <!-- ━━━━━━━━━━━━━━━━━━ PAGE: INICIO ━━━━━━━━━━━━━━━━━━ -->
   <div class="page" id="page-inicio">
@@ -1112,6 +1226,8 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <!-- App Logic -->
 <script src="app.js"></script>
