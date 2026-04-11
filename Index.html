@@ -1,1098 +1,1176 @@
 <!DOCTYPE html>
-<html lang="es" class="dark">
+<html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AgroVision AI - SaaS Agrícola</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <!-- FontAwesome for standard icons if needed (optional) -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        :root {
-            /* Light Theme Variables */
-            --bg-color: #f8fafc;
-            --surface-color: #ffffff;
-            --text-main: #1e293b;
-            --text-muted: #64748b;
-            --primary: #15803d; /* Agricultural Green */
-            --primary-hover: #166534;
-            --accent: #22c55e;
-            --danger: #ef4444;
-            --danger-bg: #fee2e2;
-            --danger-text: #b91c1c;
-            --border: #e2e8f0;
-            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-            --radius-md: 0.5rem;
-            --radius-lg: 1rem;
-            --radius-full: 9999px;
-            --transition-all: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="AgroVision — Plataforma SaaS de predicción inteligente de rendimientos de café y cacao con IA, análisis de imágenes y alertas climáticas en tiempo real.">
+  <title>AgroVision | Plataforma Inteligente de Agricultura de Precisión</title>
 
-        /* Dark Theme overrides via .dark class on html */
-        html.dark {
-            --bg-color: #0f172a;
-            --surface-color: #1e293b;
-            --text-main: #f8fafc;
-            --text-muted: #94a3b8;
-            --border: #334155;
-            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.5);
-            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.5), 0 2px 4px -2px rgb(0 0 0 / 0.5);
-            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.5), 0 4px 6px -4px rgb(0 0 0 / 0.5);
-        }
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-
-        body {
-            font-family: 'Inter', system-ui, -apple-system, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-main);
-            line-height: 1.5;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            transition: var(--transition-all);
-            overflow-x: hidden;
-        }
-
-        /* Utilities */
-        .hidden { display: none !important; }
-        .text-center { text-align: center; }
-        .mt-1 { margin-top: 0.25rem; }
-        .mt-2 { margin-top: 0.5rem; }
-        .mt-4 { margin-top: 1rem; }
-        .mt-6 { margin-top: 1.5rem; }
-        .mt-8 { margin-top: 2rem; }
-        .mb-2 { margin-bottom: 0.5rem; }
-        .mb-4 { margin-bottom: 1rem; }
-        .mb-6 { margin-bottom: 1.5rem; }
-        .p-4 { padding: 1rem; }
-        .p-6 { padding: 1.5rem; }
-        .p-8 { padding: 2rem; }
-        .flex { display: flex; }
-        .flex-col { flex-direction: column; }
-        .items-center { align-items: center; }
-        .justify-center { justify-content: center; }
-        .justify-between { justify-content: space-between; }
-        .gap-4 { gap: 1rem; }
-        .gap-6 { gap: 1.5rem; }
-        .w-full { width: 100%; }
-        .max-w-md { max-w: 28rem; }
-        .max-w-4xl { max-width: 56rem; margin: 0 auto; }
-        .text-primary { color: var(--primary); }
-        .text-muted { color: var(--text-muted); }
-        .font-bold { font-weight: 700; }
-        .text-xl { font-size: 1.25rem; }
-        .text-2xl { font-size: 1.5rem; }
-        .text-3xl { font-size: 1.875rem; }
-        .text-4xl { font-size: 2.25rem; }
-        .text-5xl { font-size: 3rem; }
-        .rounded-lg { border-radius: var(--radius-lg); }
-        .shadow-md { box-shadow: var(--shadow-md); }
-        
-        /* Layout Structure */
-        .app-container {
-            display: flex;
-            min-height: 100vh;
-            width: 100%;
-        }
-
-        /* Navbar / Sidebar */
-        .sidebar {
-            width: 260px;
-            background-color: var(--surface-color);
-            border-right: 1px solid var(--border);
-            display: flex;
-            flex-direction: column;
-            position: fixed;
-            top: 0; left: 0; bottom: 0;
-            z-index: 40;
-            transition: var(--transition-all);
-        }
-        .sidebar-header {
-            padding: 1.5rem;
-            border-bottom: 1px solid var(--border);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-        .sidebar-logo {
-            font-size: 1.5rem;
-            font-weight: 800;
-            color: var(--primary);
-            text-decoration: none;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        .sidebar-nav {
-            padding: 1.5rem 1rem;
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-        }
-        .nav-item {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            padding: 0.75rem 1rem;
-            color: var(--text-muted);
-            text-decoration: none;
-            border-radius: var(--radius-md);
-            transition: var(--transition-all);
-            font-weight: 500;
-            cursor: pointer;
-        }
-        .nav-item:hover, .nav-item.active {
-            background-color: var(--primary);
-            color: white;
-            box-shadow: var(--shadow-md);
-            transform: translateX(4px);
-        }
-        .theme-toggle {
-            cursor: pointer;
-            padding: 0.5rem;
-            border-radius: var(--radius-full);
-            color: var(--text-muted);
-            transition: var(--transition-all);
-        }
-        .theme-toggle:hover {
-            color: var(--primary);
-            background-color: var(--border);
-        }
-
-        /* Main Content wrapper */
-        .main-content {
-            margin-left: 260px; /* offset for sidebar */
-            padding: 2rem;
-            width: calc(100% - 260px);
-            min-height: 100vh;
-            transition: var(--transition-all);
-        }
-        /* When logged out, main content should take full width */
-        .logged-out .sidebar { display: none; }
-        .logged-out .main-content { margin-left: 0; width: 100%; }
-
-        /* Typography & Components */
-        h1, h2, h3 { line-height: 1.2; }
-        .card {
-            background-color: var(--surface-color);
-            border-radius: var(--radius-lg);
-            padding: 1.5rem;
-            box-shadow: var(--shadow-md);
-            border: 1px solid var(--border);
-            transition: var(--transition-all);
-        }
-        .card:hover {
-            box-shadow: var(--shadow-lg);
-            transform: translateY(-2px);
-        }
-        
-        .btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            padding: 0.75rem 1.5rem;
-            border-radius: var(--radius-md);
-            font-weight: 600;
-            border: none;
-            cursor: pointer;
-            transition: var(--transition-all);
-            text-decoration: none;
-            gap: 0.5rem;
-            font-size: 1rem;
-        }
-        .btn-primary {
-            background-color: var(--primary);
-            color: white;
-            box-shadow: 0 4px 14px 0 rgba(21, 128, 61, 0.39);
-        }
-        .btn-primary:hover {
-            background-color: var(--primary-hover);
-            transform: translateY(-1px);
-        }
-        .btn-outline {
-            background-color: transparent;
-            color: var(--primary);
-            border: 1px solid var(--primary);
-        }
-        .btn-outline:hover {
-            background-color: var(--primary);
-            color: white;
-        }
-
-        /* Forms */
-        .form-group {
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-            margin-bottom: 1rem;
-        }
-        label {
-            font-weight: 500;
-            color: var(--text-main);
-            font-size: 0.875rem;
-        }
-        input, select, textarea {
-            width: 100%;
-            padding: 0.75rem 1rem;
-            border-radius: var(--radius-md);
-            border: 1px solid var(--border);
-            background-color: var(--bg-color);
-            color: var(--text-main);
-            font-family: inherit;
-            transition: var(--transition-all);
-        }
-        input:focus, select:focus, textarea:focus {
-            outline: none;
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(21, 128, 61, 0.2);
-        }
-
-        /* Stats Grid */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 2rem;
-        }
-        .stat-card {
-            display: flex;
-            flex-direction: column;
-        }
-        .stat-icon {
-            width: 48px;
-            height: 48px;
-            border-radius: var(--radius-md);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.5rem;
-            margin-bottom: 1rem;
-        }
-        .stat-icon.green { background: rgba(34, 197, 94, 0.1); color: var(--accent); }
-        .stat-icon.red { background: var(--danger-bg); color: var(--danger-text); }
-        .stat-icon.blue { background: rgba(59, 130, 246, 0.1); color: #3b82f6; }
-        
-        .stat-value { font-size: 1.875rem; font-weight: 700; color: var(--text-main); }
-        .stat-label { color: var(--text-muted); font-size: 0.875rem; }
-
-        /* Chart container */
-        .chart-container {
-            position: relative;
-            height: 300px;
-            width: 100%;
-        }
-
-        /* Hero Section */
-        .hero-section {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            min-height: 80vh;
-            padding: 2rem;
-            background: radial-gradient(circle at center, rgba(21,128,61,0.1) 0%, transparent 60%);
-        }
-        .hero-title {
-            font-size: 3.5rem;
-            font-weight: 800;
-            margin-bottom: 1rem;
-            background: linear-gradient(to right, var(--primary), var(--accent));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-        .hero-subtitle {
-            font-size: 1.25rem;
-            color: var(--text-muted);
-            max-width: 600px;
-            margin-bottom: 2rem;
-        }
-        
-        /* Features Grid */
-        .features-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 2rem;
-            max-width: 1000px;
-            margin: 0 auto;
-        }
-        
-        /* Alerts */
-        .alert {
-            padding: 1rem;
-            border-radius: var(--radius-md);
-            margin-bottom: 1rem;
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-        }
-        .alert-error {
-            background-color: var(--danger-bg);
-            color: var(--danger-text);
-            border: 1px solid #fecaca;
-        }
-        .alert-success {
-            background-color: rgba(34, 197, 94, 0.1);
-            color: #166534;
-            border: 1px solid #bbf7d0;
-        }
-        .dark .alert-success {
-            color: #4ade80;
-            border-color: #14532d;
-        }
-
-        /* Image preview */
-        #imagePreview {
-            max-width: 100%;
-            border-radius: var(--radius-md);
-            margin-top: 1rem;
-            display: none;
-            border: 2px dashed var(--border);
-        }
-
-        /* Loading Spinner */
-        .spinner {
-            border: 3px solid rgba(0,0,0,0.1);
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            border-left-color: var(--primary);
-            animation: spin 1s linear infinite;
-        }
-        .dark .spinner { border: 3px solid rgba(255,255,255,0.1); border-left-color: var(--accent); }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        
-        /* Loader Overlay */
-        .loader-overlay {
-            position: fixed;
-            top:0; left:0; right:0; bottom:0;
-            background: var(--bg-color);
-            z-index: 9999;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-direction: column;
-            gap: 1rem;
-            transition: opacity 0.5s;
-        }
-
-        @media(max-width: 768px) {
-            .sidebar { transform: translateX(-100%); }
-            .sidebar.open { transform: translateX(0); }
-            .main-content { margin-left: 0; width: 100%; padding: 1rem;}
-            .mobile-menu-btn { display: block !important; }
-            .hero-title { font-size: 2.5rem; }
-        }
-        .mobile-menu-btn {
-            display: none;
-            background: transparent; border: none; color: var(--text-main);
-            font-size: 1.5rem; cursor: pointer; position: fixed; top: 1rem; left: 1rem; z-index: 50;
-        }
-        .mobile-overlay {
-            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.5); z-index: 30; display: none;
-        }
-    </style>
+  <!-- Fonts & Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <!-- AOS -->
+  <link rel="stylesheet" href="https://unpkg.com/aos@2.3.1/dist/aos.css">
+  <!-- Swiper -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css">
+  <!-- Platform Styles -->
+  <link rel="stylesheet" href="styles.css">
 </head>
-<body class="logged-out">
+<body>
 
-    <!-- Global Loader -->
-    <div id="loader" class="loader-overlay">
-        <div class="spinner" style="width:50px; height:50px;"></div>
-        <h2 class="text-xl font-bold">Iniciando AgroVision...</h2>
+<!-- ══════════════════════ LOADER ══════════════════════ -->
+<div id="agro-loader">
+  <div class="loader-logo">
+    <div class="loader-logo-icon"><i class="fa-solid fa-leaf"></i></div>
+    <div class="loader-logo-text">Agro<span>Vision</span></div>
+  </div>
+  <div class="loader-spinner"></div>
+  <div class="loader-bar-wrap"><div class="loader-bar"></div></div>
+  <div class="loader-msg">Iniciando plataforma...</div>
+</div>
+
+<!-- ══════════════════════ SIDEBAR ══════════════════════ -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-head">
+    <div class="sb-brand">
+      <div class="sb-brand-icon"><i class="fa-solid fa-leaf"></i></div>
+      <div class="sb-brand-text">Agro<span>Vision</span></div>
+    </div>
+    <button class="sb-toggle" onclick="toggleSidebar()" title="Colapsar menú">
+      <i id="sidebarToggleIcon" class="fa-solid fa-chevron-left"></i>
+    </button>
+  </div>
+
+  <nav class="sidebar-nav" id="sidebarNav">
+    <div class="sb-section-label">Principal</div>
+
+    <div class="sb-item active" data-page="inicio" onclick="navigateTo('inicio')">
+      <div class="sb-item-icon"><i class="fa-solid fa-house"></i></div>
+      <span class="sb-label">Inicio</span>
+    </div>
+    <div class="sb-item" data-page="dashboard" onclick="navigateTo('dashboard')">
+      <div class="sb-item-icon"><i class="fa-solid fa-chart-pie"></i></div>
+      <span class="sb-label">Dashboard</span>
     </div>
 
-    <button id="mobileMenuBtn" class="mobile-menu-btn"><i class="fas fa-bars"></i></button>
-    <div id="mobileOverlay" class="mobile-overlay"></div>
+    <div class="sb-section-label">Análisis IA</div>
 
-    <div class="app-container">
-        
-        <!-- SIDEBAR -->
-        <aside class="sidebar" id="sidebar">
-            <div class="sidebar-header">
-                <a href="#" onclick="navigate('dashboard')" class="sidebar-logo">
-                    <i class="fas fa-leaf"></i> AgroVision
-                </a>
-                <i class="fas fa-moon theme-toggle" id="themeToggle" title="Modo Oscuro"></i>
+    <div class="sb-item" data-page="prediccion" onclick="navigateTo('prediccion')">
+      <div class="sb-item-icon"><i class="fa-solid fa-brain"></i></div>
+      <span class="sb-label">Predicción IA</span>
+    </div>
+    <div class="sb-item" data-page="imagen" onclick="navigateTo('imagen')">
+      <div class="sb-item-icon"><i class="fa-solid fa-camera"></i></div>
+      <span class="sb-label">Análisis de Imagen</span>
+    </div>
+
+    <div class="sb-section-label">Recursos</div>
+
+    <div class="sb-item" data-page="biblioteca" onclick="navigateTo('biblioteca')">
+      <div class="sb-item-icon"><i class="fa-solid fa-book-open"></i></div>
+      <span class="sb-label">Biblioteca Agrícola</span>
+    </div>
+    <div class="sb-item" data-page="noticias" onclick="navigateTo('noticias')">
+      <div class="sb-item-icon"><i class="fa-solid fa-newspaper"></i></div>
+      <span class="sb-label">Noticias</span>
+    </div>
+    <div class="sb-item" data-page="alertas" onclick="navigateTo('alertas')">
+      <div class="sb-item-icon"><i class="fa-solid fa-bell"></i></div>
+      <span class="sb-label">Alertas</span>
+      <span class="sb-badge" id="sbAlertBadge">3</span>
+    </div>
+
+    <div class="sb-section-label">Soporte</div>
+
+    <div class="sb-item" data-page="asesoria" onclick="navigateTo('asesoria')">
+      <div class="sb-item-icon"><i class="fa-solid fa-user-tie"></i></div>
+      <span class="sb-label">Asesoría Profesional</span>
+    </div>
+    <div class="sb-item" data-page="historial" onclick="navigateTo('historial')">
+      <div class="sb-item-icon"><i class="fa-solid fa-clock-rotate-left"></i></div>
+      <span class="sb-label">Historial</span>
+    </div>
+    <div class="sb-item" data-page="configuracion" onclick="navigateTo('configuracion')">
+      <div class="sb-item-icon"><i class="fa-solid fa-gear"></i></div>
+      <span class="sb-label">Configuración</span>
+    </div>
+  </nav>
+
+  <div class="sidebar-foot">
+    <div class="sb-user">
+      <div class="sb-user-avatar">JF</div>
+      <div class="sb-user-info">
+        <div class="sb-user-name">Juan Fernández</div>
+        <div class="sb-user-role">Agrónomo · Plan Pro</div>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<!-- ══════════════════════ NAVBAR ══════════════════════ -->
+<header class="navbar" id="mainNavbar">
+  <div class="flex gap-2" style="align-items:center;">
+    <button class="nav-mobile-menu" onclick="toggleMobileSidebar()" id="mobileMenuBtn">
+      <i class="fa-solid fa-bars"></i>
+    </button>
+    <div class="nav-search">
+      <i class="fa-solid fa-magnifying-glass"></i>
+      <input type="text" placeholder="Buscar en AgroVision..." aria-label="Búsqueda global">
+    </div>
+  </div>
+  <div class="nav-right">
+    <button class="nav-icon-btn" onclick="toggleTheme()" title="Cambiar tema" id="themeToggleBtn">
+      <i class="fa-solid fa-sun" id="themeIcon"></i>
+    </button>
+    <button class="nav-icon-btn" onclick="navigateTo('alertas')" title="Alertas" id="navAlertBtn">
+      <i class="fa-solid fa-bell"></i>
+      <span class="notif-badge" id="navAlertBadge">3</span>
+    </button>
+    <button class="nav-icon-btn" title="Notificaciones">
+      <i class="fa-regular fa-envelope"></i>
+    </button>
+    <div class="nav-avatar" title="Mi perfil" onclick="navigateTo('configuracion')">JF</div>
+  </div>
+</header>
+
+<!-- ══════════════════════ APP CONTAINER ══════════════════════ -->
+<div class="app-wrap" id="appWrap">
+
+  <!-- ━━━━━━━━━━━━━━━━━━ PAGE: INICIO ━━━━━━━━━━━━━━━━━━ -->
+  <div class="page" id="page-inicio">
+    <!-- Hero -->
+    <section class="hero-main">
+      <div class="hero-bg"></div>
+      <div class="hero-particles" id="heroParticles"></div>
+      <div class="hero-content">
+        <div class="hero-eyebrow">
+          <span class="hero-eyebrow-dot"></span>
+          Plataforma SaaS Agrícola · Powered by AI
+        </div>
+        <h1 class="hero-title">
+          Inteligencia Agrícola
+          <span class="hero-hl">del Futuro, Hoy</span>
+        </h1>
+        <p class="hero-desc">Predicción de rendimientos de café y cacao con IA, análisis foliar por visión computacional, alertas climáticas en tiempo real y asesoría profesional en una sola plataforma.</p>
+        <div class="hero-actions">
+          <button class="btn btn-primary btn-lg" onclick="navigateTo('prediccion')">
+            <i class="fa-solid fa-brain"></i> Iniciar Predicción IA
+          </button>
+          <button class="btn btn-outline btn-lg" onclick="navigateTo('dashboard')">
+            <i class="fa-solid fa-chart-pie"></i> Ver Dashboard
+          </button>
+        </div>
+        <div class="hero-stats-row">
+          <div class="hero-stat">
+            <div class="hero-stat-num" data-count="1240" data-suffix="+">0+</div>
+            <div class="hero-stat-lbl">Agricultores activos</div>
+          </div>
+          <div class="hero-divider"></div>
+          <div class="hero-stat">
+            <div class="hero-stat-num" data-count="98.4" data-suffix="%">0%</div>
+            <div class="hero-stat-lbl">Precisión en predicciones</div>
+          </div>
+          <div class="hero-divider"></div>
+          <div class="hero-stat">
+            <div class="hero-stat-num" data-count="32000" data-suffix=" kg">0 kg</div>
+            <div class="hero-stat-lbl">Producción monitoreada</div>
+          </div>
+          <div class="hero-divider"></div>
+          <div class="hero-stat">
+            <div class="hero-stat-num" data-count="9" data-suffix=" países">0</div>
+            <div class="hero-stat-lbl">Países de cobertura</div>
+          </div>
+        </div>
+      </div>
+      <div class="hero-scroll" onclick="document.querySelector('.landing-sec').scrollIntoView({behavior:'smooth'})">
+        <i class="fa-solid fa-chevron-down"></i>
+        <span>Descubre más</span>
+      </div>
+    </section>
+
+    <!-- Features -->
+    <section class="landing-sec">
+      <div style="text-align:center; max-width:700px; margin:0 auto;">
+        <div class="sec-eyebrow"><i class="fa-solid fa-sparkles"></i> Capacidades de la plataforma</div>
+        <h2 class="sec-title">Todo lo que necesitas para una agricultura de precisión</h2>
+        <p class="sec-desc">AgroVision combina inteligencia artificial, sensores climáticos y conocimiento agronómico en herramientas concretas para aumentar tu productividad.</p>
+      </div>
+      <div class="features-grid">
+        <div class="feat-card" data-aos="fade-up" data-aos-delay="0">
+          <div class="feat-icon"><i class="fa-solid fa-brain"></i></div>
+          <div class="feat-title">Predicción IA de Rendimientos</div>
+          <div class="feat-desc">Algoritmos avanzados que analizan más de 8 variables agronómicas y climáticas para estimar con precisión la producción de tu cultivo.</div>
+        </div>
+        <div class="feat-card" data-aos="fade-up" data-aos-delay="100">
+          <div class="feat-icon"><i class="fa-solid fa-camera"></i></div>
+          <div class="feat-title">Análisis de Imágenes Foliares</div>
+          <div class="feat-desc">Sube fotos de tus plantas y nuestra IA detecta enfermedades, deficiencias nutricionales, estrés hídrico y plagas en segundos.</div>
+        </div>
+        <div class="feat-card" data-aos="fade-up" data-aos-delay="200">
+          <div class="feat-icon"><i class="fa-solid fa-cloud-sun"></i></div>
+          <div class="feat-title">Clima y Alertas en Tiempo Real</div>
+          <div class="feat-desc">Datos meteorológicos actualizados y alertas inteligentes que te notifican sobre sequías, exceso de lluvias y riesgos climáticos.</div>
+        </div>
+        <div class="feat-card" data-aos="fade-up" data-aos-delay="300">
+          <div class="feat-icon"><i class="fa-solid fa-chart-line"></i></div>
+          <div class="feat-title">Dashboard Analítico Avanzado</div>
+          <div class="feat-desc">Visualiza tu producción histórica, precios de mercado, salud del cultivo y KPIs críticos en tiempo real con gráficas interactivas.</div>
+        </div>
+        <div class="feat-card" data-aos="fade-up" data-aos-delay="400">
+          <div class="feat-icon"><i class="fa-solid fa-user-tie"></i></div>
+          <div class="feat-title">Asesoría Profesional</div>
+          <div class="feat-desc">Conecta con agrónomos expertos certificados para obtener guía personalizada sobre plagas, enfermedades y planes de fertilización.</div>
+        </div>
+        <div class="feat-card" data-aos="fade-up" data-aos-delay="500">
+          <div class="feat-icon" style="background:linear-gradient(135deg,var(--purple),var(--blue));"><i class="fa-solid fa-microphone"></i></div>
+          <div class="feat-title">Asistente de Voz IA (Clara)</div>
+          <div class="feat-desc">Clara es tu asistente de IA activada por voz disponible 24/7 para responder preguntas agronómicas y guiarte en la plataforma.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- How it works -->
+    <section class="landing-sec" style="background:var(--bg2);border-top:1px solid var(--border);border-bottom:1px solid var(--border);">
+      <div style="text-align:center; max-width:700px; margin:0 auto 3rem;">
+        <div class="sec-eyebrow"><i class="fa-solid fa-list-ol"></i> Proceso simple</div>
+        <h2 class="sec-title">¿Cómo funciona AgroVision?</h2>
+        <p class="sec-desc">En cuatro pasos, transforma los datos de tu finca en decisiones agronómicas precisas.</p>
+      </div>
+      <div class="steps-grid">
+        <div class="step-item" data-aos="fade-up" data-aos-delay="0">
+          <div class="step-num">1</div>
+          <div class="step-title">Ingresa tus datos</div>
+          <div class="step-desc">Completa el formulario con tipo de cultivo, área, temperatura, humedad y tipo de suelo.</div>
+        </div>
+        <div class="step-item" data-aos="fade-up" data-aos-delay="150">
+          <div class="step-num">2</div>
+          <div class="step-title">La IA procesa</div>
+          <div class="step-desc">Nuestros algoritmos analizan múltiples factores agronómicos y modelos climáticos predictivos.</div>
+        </div>
+        <div class="step-item" data-aos="fade-up" data-aos-delay="300">
+          <div class="step-num">3</div>
+          <div class="step-title">Recibe el diagnóstico</div>
+          <div class="step-desc">Obtén producción estimada, nivel de productividad, riesgo y recomendaciones personalizadas.</div>
+        </div>
+        <div class="step-item" data-aos="fade-up" data-aos-delay="450">
+          <div class="step-num">4</div>
+          <div class="step-title">Toma decisiones</div>
+          <div class="step-desc">Actúa con base en datos concretos y monitorea tu progreso con el historial de análisis.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Swiper Testimonials -->
+    <section class="landing-sec">
+      <div style="text-align:center; max-width:700px; margin:0 auto 3rem;">
+        <div class="sec-eyebrow"><i class="fa-solid fa-star"></i> Testimonios</div>
+        <h2 class="sec-title">Lo que dicen nuestros agricultores</h2>
+        <p class="sec-desc">Más de 1,200 agricultores en 9 países ya confían en AgroVision para tomar mejores decisiones.</p>
+      </div>
+      <div class="testi-grid">
+        <div class="testi-card" data-aos="fade-up" data-aos-delay="0">
+          <div class="testi-stars">★★★★★</div>
+          <div class="testi-text">AgroVision me ayudó a identificar la roya en mi cafetal 3 semanas antes de los síntomas visibles. Salvé literalmente mi cosecha ese año.</div>
+          <div class="testi-author">
+            <div class="testi-avatar">CR</div>
+            <div>
+              <div class="testi-name">Carlos Restrepo</div>
+              <div class="testi-role">Caficultor · Huila, Colombia</div>
             </div>
-            <nav class="sidebar-nav">
-                <a onclick="navigate('dashboard')" class="nav-item" data-target="dashboard">
-                    <i class="fas fa-chart-line"></i> Dashboard
-                </a>
-                <a onclick="navigate('predict')" class="nav-item" data-target="predict">
-                    <i class="fas fa-seedling"></i> Predicción
-                </a>
-                <a onclick="navigate('upload')" class="nav-item" data-target="upload">
-                    <i class="fas fa-camera"></i> Escáner Cultivo
-                </a>
-                <a onclick="navigate('analytics')" class="nav-item" data-target="analytics">
-                    <i class="fas fa-chart-pie"></i> Analytics
-                </a>
-                <a onclick="navigate('comentarios')" class="nav-item" data-target="comentarios">
-                    <i class="fas fa-comments"></i> Soporte Formspree
-                </a>
-                <a onclick="navigate('perfil')" class="nav-item" data-target="perfil">
-                    <i class="fas fa-user"></i> Mi Perfil
-                </a>
-            </nav>
-        </aside>
+          </div>
+        </div>
+        <div class="testi-card" data-aos="fade-up" data-aos-delay="150">
+          <div class="testi-stars">★★★★★</div>
+          <div class="testi-text">La predicción de rendimiento fue increíblemente precisa. Solo tuvo un 4% de diferencia vs la cosecha real. Ahora planifico financieramente con datos reales.</div>
+          <div class="testi-author">
+            <div class="testi-avatar" style="background:linear-gradient(135deg,var(--purple),var(--blue));">LM</div>
+            <div>
+              <div class="testi-name">Luz Marina Vargas</div>
+              <div class="testi-role">Productora de Cacao · Ecuador</div>
+            </div>
+          </div>
+        </div>
+        <div class="testi-card" data-aos="fade-up" data-aos-delay="300">
+          <div class="testi-stars">★★★★★</div>
+          <div class="testi-text">El asistente de voz Clara me resuelve dudas cuando estoy en el campo sin acceso a internet buena. Es como tener un agrónomo en el bolsillo.</div>
+          <div class="testi-author">
+            <div class="testi-avatar" style="background:linear-gradient(135deg,var(--gold),var(--orange));">JP</div>
+            <div>
+              <div class="testi-name">Jorge Paz</div>
+              <div class="testi-role">Técnico Agrícola · Perú</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
 
-        <!-- MAIN WINDOW -->
-        <main class="main-content">
-            
-            <!-- SECTION: HOME -->
-            <section id="home" class="section">
-                <div style="position:absolute; top: 1rem; right: 2rem;">
-                    <button onclick="navigate('login')" class="btn btn-outline">Ingresar</button>
-                    <button onclick="navigate('register')" class="btn btn-primary" style="margin-left: 0.5rem">Registrarse</button>
-                </div>
-                <div class="hero-section">
-                    <div class="stat-icon green" style="width:80px; height:80px; font-size:3rem; margin-bottom:1rem;">
-                        <i class="fas fa-leaf"></i>
-                    </div>
-                    <h1 class="hero-title">Predicción Inteligente de Rendimientos Agrícolas</h1>
-                    <p class="hero-subtitle">Optimiza tus cultivos de café y cacao con inteligencia artificial. Análisis de imágenes, alertas en tiempo real y predicciones precisas.</p>
-                    <button onclick="navigate('register')" class="btn btn-primary text-xl" style="padding: 1rem 2rem;">
-                        Empezar Ahora <i class="fas fa-arrow-right"></i>
-                    </button>
-                </div>
-                
-                <div class="features-grid p-8">
-                    <div class="card text-center">
-                        <i class="fas fa-robot text-primary mb-4 text-4xl"></i>
-                        <h3 class="text-xl font-bold mb-2">IA Agrícola</h3>
-                        <p class="text-muted">Modelos predictivos que evalúan el rendimiento de tus cultivos de forma precisa.</p>
-                    </div>
-                    <div class="card text-center">
-                        <i class="fas fa-camera-retro text-primary mb-4 text-4xl"></i>
-                        <h3 class="text-xl font-bold mb-2">Análisis de Imágenes</h3>
-                        <p class="text-muted">Potente escáner que detecta el estado de salud con solo subir una foto de la planta.</p>
-                    </div>
-                    <div class="card text-center">
-                        <i class="fas fa-bell text-primary mb-4 text-4xl"></i>
-                        <h3 class="text-xl font-bold mb-2">Alertas Inteligentes</h3>
-                        <p class="text-muted">Notificaciones preventivas sobre riesgos climáticos y recomendaciones de fertilización.</p>
-                    </div>
-                </div>
-            </section>
+    <!-- Tech Stack -->
+    <section class="landing-sec" style="background:var(--bg2);border-top:1px solid var(--border);border-bottom:1px solid var(--border);text-align:center;">
+      <div class="sec-eyebrow" style="margin:0 auto 1rem;"><i class="fa-solid fa-microchip"></i> Stack tecnológico</div>
+      <h2 class="sec-title" style="margin-bottom:.75rem;">Tecnologías de clase mundial</h2>
+      <p class="sec-desc" style="margin:0 auto 2rem;">Construido con las mejores herramientas para garantizar velocidad, precisión y escalabilidad.</p>
+      <div class="tech-grid">
+        <div class="tech-chip"><i class="fa-solid fa-cloud" style="color:var(--blue);"></i> OpenWeather API</div>
+        <div class="tech-chip"><i class="fa-solid fa-chart-bar" style="color:var(--orange);"></i> Chart.js</div>
+        <div class="tech-chip"><i class="fa-solid fa-brain" style="color:var(--purple);"></i> VAPI AI (Voz)</div>
+        <div class="tech-chip"><i class="fa-solid fa-database" style="color:var(--teal);"></i> Supabase</div>
+        <div class="tech-chip"><i class="fa-solid fa-eye" style="color:var(--primary);"></i> Computer Vision</div>
+        <div class="tech-chip"><i class="fa-brands fa-google" style="color:var(--red);"></i> Geolocation API</div>
+        <div class="tech-chip"><i class="fa-solid fa-wand-magic-sparkles" style="color:var(--gold);"></i> GSAP Animations</div>
+        <div class="tech-chip"><i class="fa-solid fa-mobile-screen" style="color:var(--primary);"></i> Responsive Design</div>
+      </div>
+    </section>
 
-            <!-- SECTION: REGISTER -->
-            <section id="register" class="section hidden">
-                <div class="flex items-center justify-center min-h-[80vh]">
-                    <div class="card w-full max-w-md">
-                        <h2 class="text-2xl font-bold mb-6 text-center">Crear Cuenta</h2>
-                        <div id="regError" class="alert alert-error hidden"></div>
-                        <div id="regSuccess" class="alert alert-success hidden"></div>
-                        <form id="regForm">
-                            <div class="form-group">
-                                <label>Nombre Completo</label>
-                                <input type="text" id="regName" placeholder="Agricultor Ejemplar" required>
-                            </div>
-                            <div class="form-group">
-                                <label>Email</label>
-                                <input type="email" id="regEmail" placeholder="correo@ejemplo.com" required>
-                            </div>
-                            <div class="form-group">
-                                <label>Password (mín. 6 chars)</label>
-                                <input type="password" id="regPass" placeholder="••••••••" required>
-                            </div>
-                            <button type="submit" class="btn btn-primary w-full mt-4" id="btnReg">
-                                Registrarse
-                            </button>
-                        </form>
-                        <p class="text-center text-muted mt-4">
-                            ¿Ya tienes cuenta? <a href="#" onclick="navigate('login')" class="text-primary font-bold">Ingresar</a>
-                        </p>
-                    </div>
-                </div>
-            </section>
+    <!-- CTA -->
+    <section class="cta-section">
+      <div class="sec-eyebrow" style="margin:0 auto 1rem;"><i class="fa-solid fa-rocket"></i> Comienza hoy</div>
+      <h2 class="cta-title">¿Listo para transformar tu cultivo?</h2>
+      <p class="cta-desc">Únete a más de 1,200 agricultores que ya optimizan su producción con inteligencia artificial.</p>
+      <div style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;">
+        <button class="btn btn-primary btn-lg" onclick="navigateTo('prediccion')">
+          <i class="fa-solid fa-brain"></i> Hacer mi primera predicción
+        </button>
+        <button class="btn btn-outline btn-lg" onclick="navigateTo('imagen')">
+          <i class="fa-solid fa-camera"></i> Analizar mi cultivo
+        </button>
+      </div>
+    </section>
 
-            <!-- SECTION: LOGIN -->
-            <section id="login" class="section hidden">
-                <div class="flex items-center justify-center min-h-[80vh]">
-                    <div class="card w-full max-w-md">
-                        <h2 class="text-2xl font-bold mb-6 text-center">Inicia Sesión</h2>
-                        <div id="loginError" class="alert alert-error hidden"></div>
-                        <form id="loginForm">
-                            <div class="form-group">
-                                <label>Email</label>
-                                <input type="email" id="loginEmail" required>
-                            </div>
-                            <div class="form-group">
-                                <label>Password</label>
-                                <input type="password" id="loginPass" required>
-                            </div>
-                            <button type="submit" class="btn btn-primary w-full mt-4" id="btnLogin">
-                                Ingresar
-                            </button>
-                        </form>
-                        <p class="text-center text-muted mt-4">
-                            ¿No tienes cuenta? <a href="#" onclick="navigate('register')" class="text-primary font-bold">Registrarse</a>
-                        </p>
-                    </div>
-                </div>
-            </section>
+    <!-- Footer -->
+    <footer>
+      <div class="footer-grid">
+        <div>
+          <div class="footer-brand-row">
+            <div class="sb-brand-icon" style="width:32px;height:32px;font-size:.95rem;flex-shrink:0;"><i class="fa-solid fa-leaf"></i></div>
+            <div class="footer-brand-text">Agro<span>Vision</span></div>
+          </div>
+          <p class="footer-desc">Plataforma SaaS de agricultura de precisión con IA para cultivos de café y cacao. Democratizando el acceso a tecnología agrícola avanzada en Latinoamérica.</p>
+        </div>
+        <div>
+          <div class="footer-title">Plataforma</div>
+          <div class="footer-links">
+            <span class="footer-link" onclick="navigateTo('dashboard')">Dashboard</span>
+            <span class="footer-link" onclick="navigateTo('prediccion')">Predicción IA</span>
+            <span class="footer-link" onclick="navigateTo('imagen')">Análisis de Imagen</span>
+            <span class="footer-link" onclick="navigateTo('biblioteca')">Biblioteca</span>
+          </div>
+        </div>
+        <div>
+          <div class="footer-title">Recursos</div>
+          <div class="footer-links">
+            <span class="footer-link" onclick="navigateTo('noticias')">Noticias</span>
+            <span class="footer-link" onclick="navigateTo('alertas')">Alertas</span>
+            <span class="footer-link" onclick="navigateTo('asesoria')">Asesoría</span>
+            <span class="footer-link" onclick="navigateTo('historial')">Historial</span>
+          </div>
+        </div>
+        <div>
+          <div class="footer-title">Empresa</div>
+          <div class="footer-links">
+            <span class="footer-link">Sobre nosotros</span>
+            <span class="footer-link">Tecnología</span>
+            <span class="footer-link">Privacidad</span>
+            <span class="footer-link">Contacto</span>
+          </div>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <div class="footer-copy">© 2026 AgroVision Technologies. Todos los derechos reservados.</div>
+        <div class="footer-socials">
+          <div class="footer-soc"><i class="fa-brands fa-twitter"></i></div>
+          <div class="footer-soc"><i class="fa-brands fa-linkedin-in"></i></div>
+          <div class="footer-soc"><i class="fa-brands fa-instagram"></i></div>
+          <div class="footer-soc"><i class="fa-brands fa-youtube"></i></div>
+        </div>
+      </div>
+    </footer>
+  </div><!-- /page-inicio -->
 
-            <!-- SECTION: DASHBOARD -->
-            <section id="dashboard" class="section hidden">
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-3xl font-bold">Visión General</h2>
-                    <span class="text-muted"><i class="fas fa-calendar"></i> <span id="currentDate"></span></span>
-                </div>
+  <!-- ━━━━━━━━━━━━━━━━━━ PAGE: DASHBOARD ━━━━━━━━━━━━━━━━━━ -->
+  <div class="page" id="page-dashboard">
+    <div class="section-wrap">
+      <div class="section-hd" style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:1rem;">
+        <div>
+          <h1 class="section-title">Dashboard</h1>
+          <p class="section-sub">Métricas en tiempo real de tus cultivos de café y cacao.</p>
+        </div>
+        <div style="display:flex;gap:.65rem;align-items:center;">
+          <button class="btn btn-secondary btn-sm"><i class="fa-regular fa-calendar"></i> Abr 2026</button>
+          <button class="btn btn-primary btn-sm" onclick="navigateTo('prediccion')"><i class="fa-solid fa-plus"></i> Nueva predicción</button>
+        </div>
+      </div>
 
-                <div class="stats-grid">
-                    <div class="card stat-card">
-                        <div class="stat-icon green"><i class="fas fa-chart-bar"></i></div>
-                        <div class="stat-value">1,240 kg</div>
-                        <div class="stat-label">Producción Estimada (Mes)</div>
-                    </div>
-                    <div class="card stat-card">
-                        <div class="stat-icon blue"><i class="fas fa-map"></i></div>
-                        <div class="stat-value">Bueno</div>
-                        <div class="stat-label">Estado Promedio Cultivos</div>
-                    </div>
-                    <div class="card stat-card">
-                        <div class="stat-icon red"><i class="fas fa-exclamation-triangle"></i></div>
-                        <div class="stat-value">2</div>
-                        <div class="stat-label">Alertas Activas</div>
-                    </div>
-                </div>
+      <!-- KPI Grid -->
+      <div class="kpi-grid">
+        <div class="kpi-card c-green">
+          <div class="kpi-top">
+            <div class="kpi-icon"><i class="fa-solid fa-weight-hanging"></i></div>
+            <div class="kpi-change up"><i class="fa-solid fa-arrow-up fa-xs"></i> +12.4%</div>
+          </div>
+          <div class="kpi-value" id="kpiProd">2,840 kg</div>
+          <div class="kpi-label">Producción Estimada</div>
+        </div>
+        <div class="kpi-card c-blue">
+          <div class="kpi-top">
+            <div class="kpi-icon" style="background:rgba(59,130,246,.12);color:var(--blue);"><i class="fa-solid fa-map"></i></div>
+            <div class="kpi-change up"><i class="fa-solid fa-arrow-up fa-xs"></i> +2.5 Ha</div>
+          </div>
+          <div class="kpi-value" id="kpiArea">14.5 Ha</div>
+          <div class="kpi-label">Área Total Analizada</div>
+        </div>
+        <div class="kpi-card c-purple">
+          <div class="kpi-top">
+            <div class="kpi-icon" style="background:rgba(139,92,246,.12);color:var(--purple);"><i class="fa-solid fa-camera"></i></div>
+            <div class="kpi-change up"><i class="fa-solid fa-arrow-up fa-xs"></i> +5 hoy</div>
+          </div>
+          <div class="kpi-value" id="kpiAnalyses">38</div>
+          <div class="kpi-label">Imágenes Analizadas</div>
+        </div>
+        <div class="kpi-card c-red">
+          <div class="kpi-top">
+            <div class="kpi-icon" style="background:rgba(239,68,68,.12);color:var(--red);"><i class="fa-solid fa-bell"></i></div>
+            <div class="kpi-change down"><i class="fa-solid fa-arrow-down fa-xs"></i> -1 leída</div>
+          </div>
+          <div class="kpi-value" id="kpiAlerts">3</div>
+          <div class="kpi-label">Alertas Activas</div>
+        </div>
+      </div>
 
-                <div class="flex flex-col gap-6" style="display: grid; grid-template-columns: 2fr 1fr;">
-                    <div class="card">
-                        <h3 class="text-xl font-bold mb-4">Rendimiento Histórico</h3>
-                        <div class="chart-container">
-                            <canvas id="dashChart"></canvas>
-                        </div>
-                    </div>
-                    <div class="flex flex-col gap-6">
-                        <div class="card">
-                            <h3 class="text-lg font-bold mb-4"><i class="fas fa-bell text-primary"></i> Notificaciones</h3>
-                            <div class="alert alert-error"><i class="fas fa-cloud-showers-heavy"></i> Posibles heladas prox. 48h.</div>
-                            <div class="alert alert-success"><i class="fas fa-check-circle"></i> Análisis del lote Norte: Excelente.</div>
-                        </div>
-                        <div class="card">
-                            <h3 class="text-lg font-bold mb-4">Acciones Rápidas</h3>
-                            <button onclick="navigate('predict')" class="btn btn-outline w-full mb-2">Nueva Predicción</button>
-                            <button onclick="navigate('upload')" class="btn btn-primary w-full">Analizar Imagen</button>
-                        </div>
-                    </div>
-                </div>
-            </section>
+      <!-- Charts Row 1 -->
+      <div class="charts-grid">
+        <div class="card">
+          <div class="card-hd">
+            <div>
+              <div class="card-title">Producción Mensual: Café vs Cacao</div>
+              <div class="card-sub">Últimos 8 meses · kg cosechados</div>
+            </div>
+            <span class="badge bg-green">Actualizado</span>
+          </div>
+          <div class="chart-wrap"><canvas id="chartProd"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-hd">
+            <div>
+              <div class="card-title">Salud del Cultivo</div>
+              <div class="card-sub">Distribución por estado foliar</div>
+            </div>
+          </div>
+          <div class="chart-wrap"><canvas id="chartHealth"></canvas></div>
+        </div>
+      </div>
 
-            <!-- SECTION: PREDICT -->
-            <section id="predict" class="section hidden">
-                <h2 class="text-3xl font-bold mb-6">Predicción de Rendimientos</h2>
-                <div class="card max-w-4xl">
-                    <form id="predictForm" class="flex flex-col gap-4">
-                        <div class="grid" style="display: grid; grid-template-columns: 1fr 1fr; gap:1rem;">
-                            <div class="form-group">
-                                <label>Tipo de Cultivo</label>
-                                <select id="pCultivo" required>
-                                    <option value="cafe">Café</option>
-                                    <option value="cacao">Cacao</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label>Área Sembrada (Hectáreas)</label>
-                                <input type="number" id="pArea" min="0.1" step="0.1" required>
-                            </div>
-                            <div class="form-group">
-                                <label>Edad del Cultivo (Años)</label>
-                                <input type="number" id="pEdad" min="0" required>
-                            </div>
-                            <div class="form-group">
-                                <label>Clima (Temperatura Promedio °C)</label>
-                                <input type="number" id="pClima" required>
-                            </div>
-                            <div class="form-group" style="grid-column: span 2;">
-                                <label>Tipo de Suelo (pH aprox)</label>
-                                <input type="number" id="pSuelo" step="0.1" required>
-                            </div>
-                        </div>
-                        <button type="submit" class="btn btn-primary w-full"><i class="fas fa-magic"></i> Calcular Predicción A.I.</button>
-                    </form>
-
-                    <div id="predResult" class="hidden mt-8 p-6 bg-green-50 rounded-lg border border-green-200" style="background: rgba(21, 128, 61, 0.05); border: 1px solid var(--primary);">
-                        <h3 class="text-2xl font-bold text-primary mb-4">Resultados de IA</h2>
-                        
-                        <div class="stats-grid">
-                            <div>
-                                <div class="text-muted">Producción Estimada</div>
-                                <div class="text-3xl font-bold text-primary" id="resProd"></div>
-                            </div>
-                            <div>
-                                <div class="text-muted">Nivel de Riesgo</div>
-                                <div class="text-2xl font-bold" id="resRiesgo"></div>
-                            </div>
-                        </div>
-                        
-                        <div class="mt-4">
-                            <h4 class="font-bold">Recomendaciones:</h4>
-                            <p id="resRecom" class="text-muted mt-1"></p>
-                        </div>
-                        
-                        <div class="chart-container mt-6">
-                            <canvas id="predictChart"></canvas>
-                        </div>
-                    </div>
+      <!-- Row 2: Weather + Market + Chart -->
+      <div class="dash-grid">
+        <div style="display:flex;flex-direction:column;gap:1.25rem;">
+          <div class="card" style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;">
+            <!-- Weather -->
+            <div class="weather-card">
+              <div class="card-hd" style="margin-bottom:.85rem;">
+                <div class="card-title"><i class="fa-solid fa-cloud-sun text-blue" style="margin-right:.4rem;"></i>Clima Actual</div>
+                <span class="badge bg-blue" id="wCity">Bogotá, CO</span>
+              </div>
+              <div class="wth-row">
+                <div class="wth-main">
+                  <div class="wth-temp" id="wTemp">22°</div>
+                  <div class="wth-desc" id="wDesc">parcialmente nublado</div>
                 </div>
-            </section>
-
-            <!-- SECTION: UPLOAD -->
-            <section id="upload" class="section hidden">
-                <h2 class="text-3xl font-bold mb-6">Análisis A.I. de Imágenes</h2>
-                <div class="card max-w-4xl" style="text-align: center;">
-                    <i class="fas fa-cloud-upload-alt text-primary mb-4" style="font-size: 4rem;"></i>
-                    <p class="mb-6 text-muted">Sube una foto de tu cultivo para detectar enfermedades o validar su estado actual.</p>
-                    
-                    <input type="file" id="imgUpload" accept="image/*" class="hidden">
-                    <button class="btn btn-outline mb-4" onclick="document.getElementById('imgUpload').click()">Seleccionar Imagen</button>
-                    
-                    <div>
-                        <img id="imgPreview" style="display:none; max-height:300px; margin: 0 auto; border-radius: var(--radius-md); box-shadow: var(--shadow-md);">
-                    </div>
-                    
-                    <button id="btnAnalyze" class="btn btn-primary mt-6 hidden"><i class="fas fa-search-plus"></i> Analizar Estado</button>
-                    
-                    <div id="analysisResult" class="hidden mt-6 p-4 rounded-lg">
-                        <h3 class="text-xl font-bold mb-2">Diagnóstico: <span id="diagState"></span></h3>
-                        <p id="diagText" class="text-muted"></p>
-                    </div>
+                <div class="wth-metrics">
+                  <div class="wth-metric"><i class="fa-solid fa-droplet"></i> Humedad: <b id="wHumidity">74%</b></div>
+                  <div class="wth-metric"><i class="fa-solid fa-wind"></i> Viento: <b id="wWind">3.2 m/s</b></div>
+                  <div class="wth-metric"><i class="fa-solid fa-temperature-half"></i> Sensación: <b id="wFeels">23°C</b></div>
                 </div>
-            </section>
+              </div>
+            </div>
+            <!-- Trend Chart -->
+            <div>
+              <div class="card-title" style="margin-bottom:.85rem;"><i class="fa-solid fa-chart-line text-green" style="margin-right:.4rem;"></i>Tendencia de Rendimiento</div>
+              <div class="chart-wrap" style="height:160px;"><canvas id="chartMonthly"></canvas></div>
+            </div>
+          </div>
+          <!-- Climate Chart -->
+          <div class="card">
+            <div class="card-hd">
+              <div>
+                <div class="card-title">Clima vs Rendimiento</div>
+                <div class="card-sub">Correlación lluvia/productividad últimos 6 meses</div>
+              </div>
+            </div>
+            <div class="chart-wrap"><canvas id="chartClimate"></canvas></div>
+          </div>
+        </div>
 
-            <!-- SECTION: ANALYTICS -->
-            <section id="analytics" class="section hidden">
-                <h2 class="text-3xl font-bold mb-6">Analítica Avanzada</h2>
-                <div class="card mb-6">
-                    <h3 class="text-xl font-bold mb-4">Exportación y Reportes</h3>
-                    <button class="btn btn-primary" onclick="alert('Funcionalidad de exportación CSV simulada.')"><i class="fas fa-download"></i> Exportar Datos (CSV)</button>
-                </div>
-                <!-- Mock charts container -->
-                <div class="grid gap-6" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));">
-                     <div class="card">
-                         <h3 class="text-lg font-bold mb-4">Comparativa Anual</h3>
-                         <div class="chart-container"><canvas id="anaChart1"></canvas></div>
-                     </div>
-                     <div class="card">
-                         <h3 class="text-lg font-bold mb-4">Distribución por Cultivo</h3>
-                         <div class="chart-container"><canvas id="anaChart2"></canvas></div>
-                     </div>
-                </div>
-            </section>
+        <!-- Market Prices -->
+        <div>
+          <div class="card" style="height:100%;">
+            <div class="card-hd">
+              <div>
+                <div class="card-title"><i class="fa-solid fa-dollar-sign text-gold" style="margin-right:.4rem;"></i>Precios de Mercado</div>
+                <div class="card-sub">Actualizado hoy</div>
+              </div>
+              <button class="btn btn-sm btn-secondary" onclick="renderMarketPrices()"><i class="fa-solid fa-rotate-right"></i></button>
+            </div>
+            <div class="market-list" id="marketPrices"></div>
 
-            <!-- SECTION: COMENTARIOS -->
-            <section id="comentarios" class="section hidden">
-                <h2 class="text-3xl font-bold mb-6">Soporte y Comentarios</h2>
-                <div class="card max-w-4xl">
-                    <p class="mb-4 text-muted">Envíanos tus dudas o comentarios y nuestro equipo de agrónomos te contactará vía Formspree.</p>
-                    <form action="https://formspree.io/f/mojpbvpo" method="POST" class="flex flex-col gap-4">
-                        <div class="grid" style="display: grid; grid-template-columns: 1fr 1fr; gap:1rem;">
-                            <div class="form-group">
-                                <label>Nombre</label>
-                                <input type="text" name="nombre" placeholder="Tu Nombre" required>
-                            </div>
-                            <div class="form-group">
-                                <label>Email</label>
-                                <input type="email" name="email" placeholder="Correo" required>
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label>Cultivo Principal</label>
-                            <select name="cultivo">
-                                <option>Café</option>
-                                <option>Cacao</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Comentario</label>
-                            <textarea name="mensaje" placeholder="Describe tu necesidad..." rows="5" required></textarea>
-                        </div>
-                        <button type="submit" class="btn btn-primary w-full"><i class="fas fa-paper-plane"></i> Enviar a Soporte</button>
-                    </form>
+            <div style="margin-top:1.5rem;padding-top:1rem;border-top:1px solid var(--border);">
+              <div class="card-title" style="margin-bottom:.75rem;"><i class="fa-solid fa-bell text-red" style="margin-right:.4rem;"></i>Alertas Recientes</div>
+              <div style="display:flex;flex-direction:column;gap:.55rem;">
+                <div style="display:flex;align-items:flex-start;gap:.65rem;padding:.65rem;border-radius:var(--r-md);background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.2);">
+                  <i class="fa-solid fa-cloud-rain" style="color:var(--red);margin-top:.15rem;flex-shrink:0;"></i>
+                  <div style="font-size:.8rem;color:var(--text2);">Exceso de lluvias proyectado en 48h. Revisar drenajes.</div>
                 </div>
-            </section>
-
-            <!-- SECTION: PERFIL -->
-            <section id="perfil" class="section hidden">
-                <h2 class="text-3xl font-bold mb-6">Mi Perfil Agricultor</h2>
-                <div class="card max-w-md">
-                    <div class="text-center mb-6">
-                        <div class="stat-icon green" style="width:100px; height:100px; font-size:3rem; margin: 0 auto 1rem; border-radius: 50%;">
-                            <i class="fas fa-user-tie"></i>
-                        </div>
-                        <h3 class="text-2xl font-bold" id="profName">Usuario</h3>
-                        <p class="text-muted" id="profEmail">correo@ejemplo.com</p>
-                    </div>
-                    <hr class="mb-6" style="border-top:1px solid var(--border); border-bottom:none;">
-                    <div class="form-group">
-                        <label>Configuración de Notificaciones Automáticas</label>
-                        <select>
-                            <option>Alertas por Email y Dashboard</option>
-                            <option>Solo Dashboard</option>
-                        </select>
-                    </div>
-                    <button class="btn btn-outline w-full text-danger mt-6" id="btnLogout" style="color:var(--danger); border-color:var(--danger)">
-                        <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
-                    </button>
+                <div style="display:flex;align-items:flex-start;gap:.65rem;padding:.65rem;border-radius:var(--r-md);background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.2);">
+                  <i class="fa-solid fa-bug" style="color:var(--gold);margin-top:.15rem;flex-shrink:0;"></i>
+                  <div style="font-size:.8rem;color:var(--text2);">Umbral de broca superado en lotes 3 y 4. Acción requerida.</div>
                 </div>
-            </section>
+              </div>
+              <button class="btn btn-secondary btn-sm btn-block mt-3" onclick="navigateTo('alertas')"><i class="fa-solid fa-arrow-right"></i>Ver todas las alertas</button>
+            </div>
+          </div>
+        </div>
+      </div>
 
-        </main>
+      <!-- History preview -->
+      <div class="card">
+        <div class="card-hd">
+          <div>
+            <div class="card-title">Últimos Análisis</div>
+            <div class="card-sub">Registros más recientes</div>
+          </div>
+          <button class="btn btn-sm btn-secondary" onclick="navigateTo('historial')">Ver historial completo <i class="fa-solid fa-arrow-right"></i></button>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr>
+              <th>Fecha</th><th>Tipo</th><th>Cultivo</th><th>Área</th><th>Producción</th><th>Productividad</th><th>Riesgo</th>
+            </tr></thead>
+            <tbody id="historyBody">
+              <tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--muted);"><i class="fa-solid fa-folder-open" style="display:block;font-size:1.5rem;margin-bottom:.5rem;"></i>Sin análisis recientes</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
+  </div><!-- /page-dashboard -->
 
-    <!-- VAPI WIDGET - EXACT CODE AS REQUESTED -->
-    <vapi-widget
-      public-key="15bd8e44-da9b-4849-aaa8-b967d6d28b19"
-      assistant-id="8a9f9772-2bf2-4470-8107-f8dfcd2e1b00"
-      mode="voice"
-      theme="dark"
-      base-bg-color="#000000"
-      accent-color="#14B8A6"
-      cta-button-color="#000000"
-      cta-button-text-color="#ffffff"
-      border-radius="large"
-      size="full"
-      position="bottom-right"
-      title="Clara"
-      start-button-text="Start"
-      end-button-text="End Call"
-      chat-first-message="Hey, How can I help you today?"
-      chat-placeholder="Type your message..."
-      voice-show-transcript="true"
-      consent-required="true"
-      consent-title="Terms and conditions"
-      consent-content="By clicking &quot;Agree,&quot; and each time I interact with this AI agent, I consent to the recording, storage, and sharing of my communications with third-party service providers, and as otherwise described in our Terms of Service."
-      consent-storage-key="vapi_widget_consent"
-    > 
-    </vapi-widget>
+  <!-- ━━━━━━━━━━━━━━━━━━ PAGE: PREDICCIÓN IA ━━━━━━━━━━━━━━━━━━ -->
+  <div class="page" id="page-prediccion">
+    <div class="section-wrap">
+      <div class="section-hd">
+        <h1 class="section-title"><i class="fa-solid fa-brain text-green" style="margin-right:.5rem;"></i>Predicción IA de Rendimientos</h1>
+        <p class="section-sub">Ingresa los parámetros de tu cultivo para obtener una estimación precisa de producción con inteligencia artificial.</p>
+      </div>
+      <div class="pred-grid">
+        <!-- Form -->
+        <div class="card">
+          <div class="card-hd">
+            <div class="card-title">Parámetros del Cultivo</div>
+            <span class="badge bg-green"><i class="fa-solid fa-circle" style="font-size:.4rem;"></i> IA Activa</span>
+          </div>
+          <form id="predForm" onsubmit="runPrediction(event)">
+            <div class="form-grid">
+              <div class="form-group">
+                <label class="form-label"><i class="fa-solid fa-seedling"></i>Tipo de Cultivo</label>
+                <select id="predCultivo" class="form-control" required>
+                  <option value="cafe">☕ Café (Arábica / Robusta)</option>
+                  <option value="cacao">🍫 Cacao (Theobroma)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label"><i class="fa-solid fa-map"></i>Área Sembrada (Hectáreas)</label>
+                <input type="number" id="predArea" class="form-control" step="0.1" min="0.1" max="5000" required placeholder="Ej. 3.5">
+              </div>
+            </div>
+            <div class="form-grid">
+              <div class="form-group">
+                <label class="form-label"><i class="fa-solid fa-thermometer-half"></i>Temperatura Media (°C)</label>
+                <div class="range-row">
+                  <input type="range" id="predTemp" min="10" max="38" value="22" data-display="predTempVal" data-unit="°C">
+                  <span class="range-val" id="predTempVal">22°C</span>
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label"><i class="fa-solid fa-droplet"></i>Humedad Relativa (%)</label>
+                <div class="range-row">
+                  <input type="range" id="predHum" min="30" max="100" value="72" data-display="predHumVal" data-unit="%">
+                  <span class="range-val" id="predHumVal">72%</span>
+                </div>
+              </div>
+            </div>
+            <div class="form-grid">
+              <div class="form-group">
+                <label class="form-label"><i class="fa-solid fa-cloud-rain"></i>Precipitación Mensual (mm)</label>
+                <input type="number" id="predRain" class="form-control" min="0" max="800" required placeholder="Ej. 120 mm/mes">
+              </div>
+              <div class="form-group">
+                <label class="form-label"><i class="fa-solid fa-mountain"></i>Altitud (m.s.n.m.)</label>
+                <input type="number" id="predAlt" class="form-control" min="0" max="4000" required placeholder="Ej. 1500 m">
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label"><i class="fa-solid fa-layer-group"></i>Tipo de Suelo</label>
+              <select id="predSoil" class="form-control">
+                <option value="humifero">Humífero (alto materia orgánica)</option>
+                <option value="franco" selected>Franco (ideal para caficultura)</option>
+                <option value="arcilloso">Arcilloso (retención de agua)</option>
+                <option value="argiloso">Argilo-limoso</option>
+                <option value="arenoso">Arenoso (baja retención)</option>
+              </select>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block btn-lg">
+              <i class="fa-solid fa-brain"></i> Calcular con IA
+            </button>
+          </form>
+        </div>
 
-    <script src="https://unpkg.com/@vapi-ai/client-sdk-react/dist/embed/widget.umd.js" async type="text/javascript"></script>
+        <!-- Results -->
+        <div id="predResultPanel" style="display:none;">
+          <div class="card result-panel">
+            <div class="card-hd">
+              <div class="card-title">Resultado de la Predicción</div>
+              <span class="badge bg-green"><i class="fa-solid fa-check"></i> Completado</span>
+            </div>
+            <div class="result-big">
+              <div style="font-size:.8rem;color:var(--muted);margin-bottom:.35rem;">Producción Total Estimada</div>
+              <div class="result-big-val" id="resTotalKg">0</div>
+              <div class="result-big-lbl">kilogramos</div>
+            </div>
+            <div class="result-metrics">
+              <div class="result-metric">
+                <div class="result-metric-val" id="resKgHa">0</div>
+                <div class="result-metric-lbl">kg por hectárea</div>
+              </div>
+              <div class="result-metric">
+                <div class="result-metric-val" id="resConf">0%</div>
+                <div class="result-metric-lbl">Confianza del modelo</div>
+              </div>
+            </div>
+            <div>
+              <div class="prog-label">
+                <span style="font-size:.8rem;font-weight:600;color:var(--text2);">Índice de Productividad</span>
+                <span style="font-weight:700;" id="resProd">0%</span>
+              </div>
+              <div class="prog-bar"><div class="prog-fill" id="resProdBar" style="width:0%;"></div></div>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+              <div style="font-size:.82rem;color:var(--muted);">Nivel de Riesgo</div>
+              <div style="font-weight:800;font-size:1rem;" id="resRisk">-</div>
+            </div>
+            <div>
+              <div class="card-title" style="margin-bottom:.75rem;"><i class="fa-solid fa-lightbulb text-gold" style="margin-right:.4rem;"></i>Recomendaciones IA</div>
+              <div class="rec-list" id="resRecs"></div>
+            </div>
+          </div>
+          <!-- Prediction Chart -->
+          <div class="card mt-2">
+            <div class="card-title" style="margin-bottom:.85rem;"><i class="fa-solid fa-chart-line text-green" style="margin-right:.4rem;"></i>Proyección Anual de Producción</div>
+            <div class="chart-wrap"><canvas id="chartPrediction"></canvas></div>
+          </div>
+        </div>
 
-    <!-- MAIN APP LOGIC -->
-    <script>
-        // Supabase Init
-        const supabaseUrl = 'https://drohgrdzvttjbkrcrgko.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRyb2hncmR6dnR0amJrcmNyZ2tvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU2MDA2MDYsImV4cCI6MjA5MTE3NjYwNn0.559FQm6ahLKqYkhSYRQJblRjHTSK1S5_NB8z7jbh41Y';
-        const localSupabase = supabase.createClient(supabaseUrl, supabaseKey); // renamed to avoid conflict
+        <!-- Placeholder when no result -->
+        <div id="predPlaceholder" class="card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:1.25rem;min-height:300px;">
+          <div style="width:80px;height:80px;border-radius:var(--r-xl);background:rgba(34,197,94,.1);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:2rem;color:var(--primary);">
+            <i class="fa-solid fa-brain"></i>
+          </div>
+          <div>
+            <div style="font-weight:700;color:var(--text);margin-bottom:.5rem;">Los resultados aparecerán aquí</div>
+            <div style="font-size:.85rem;color:var(--muted);max-width:280px;">Completa el formulario con los datos de tu cultivo y presiona "Calcular con IA".</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div><!-- /page-prediccion -->
 
-        // Elements
-        const bodyClass = document.body.classList;
-        
-        // Remove loader easily
-        window.addEventListener('load', () => {
-            setTimeout(() => {
-                document.getElementById('loader').style.opacity = '0';
-                setTimeout(() => document.getElementById('loader').style.display = 'none', 500);
-            }, 500);
-            
-            document.getElementById('currentDate').innerText = new Date().toLocaleDateString('es-ES', {weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'});
-        });
+  <!-- ━━━━━━━━━━━━━━━━━━ PAGE: ANÁLISIS DE IMAGEN ━━━━━━━━━━━━━━━━━━ -->
+  <div class="page" id="page-imagen">
+    <div class="section-wrap">
+      <div class="section-hd">
+        <h1 class="section-title"><i class="fa-solid fa-camera text-green" style="margin-right:.5rem;"></i>Análisis de Imagen Foliar</h1>
+        <p class="section-sub">Sube una fotografía de tu cultivo y nuestra IA detectará enfermedades, deficiencias nutricionales y estrés hídrico.</p>
+      </div>
+      <div class="img-grid">
+        <div>
+          <div class="card">
+            <div class="card-hd">
+              <div class="card-title">Subir Imagen de Cultivo</div>
+            </div>
+            <div class="upload-zone" id="uploadZone">
+              <div class="upload-icon"><i class="fa-solid fa-cloud-arrow-up"></i></div>
+              <div class="upload-title">Arrastra aquí o haz clic para subir</div>
+              <div class="upload-hint">JPG, PNG, WEBP · Máx. 10 MB por imagen</div>
+              <div class="upload-methods">
+                <button type="button" class="btn btn-secondary btn-sm" onclick="el('imgInput').click()"><i class="fa-solid fa-folder-open"></i> Galería</button>
+                <button type="button" class="btn btn-secondary btn-sm"><i class="fa-solid fa-camera"></i> Cámara</button>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="loadDemoImage()"><i class="fa-solid fa-wand-magic-sparkles"></i> Demo</button>
+              </div>
+              <input type="file" id="imgInput" accept="image/*" style="display:none;">
+            </div>
+            <div class="img-preview-wrap" id="imgPreviewWrap">
+              <img id="imgPreviewImg" src="" alt="Vista previa del cultivo">
+            </div>
+          </div>
 
-        // Theme logic
-        const toggle = document.getElementById('themeToggle');
-        toggle.addEventListener('click', () => {
-            document.documentElement.classList.toggle('dark');
-        });
+          <!-- Scan history mini -->
+          <div class="card mt-2">
+            <div class="card-title" style="margin-bottom:1rem;"><i class="fa-solid fa-history text-muted" style="margin-right:.4rem;"></i>Análisis Previos</div>
+            <div style="display:flex;flex-direction:column;gap:.65rem;">
+              <div style="display:flex;align-items:center;gap:1rem;padding:.65rem;border-radius:var(--r-md);background:var(--bg2);border:1px solid var(--border);">
+                <div style="width:38px;height:38px;border-radius:var(--r-md);background:rgba(34,197,94,.12);display:flex;align-items:center;justify-content:center;font-size:1.1rem;color:var(--primary);flex-shrink:0;"><i class="fa-solid fa-leaf"></i></div>
+                <div style="flex:1;"><div style="font-size:.84rem;font-weight:600;color:var(--text);">Hoja de Café</div><div style="font-size:.74rem;color:var(--muted);">Hoy · Estado: Excelente</div></div>
+                <span class="badge bg-green">98%</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:1rem;padding:.65rem;border-radius:var(--r-md);background:var(--bg2);border:1px solid var(--border);">
+                <div style="width:38px;height:38px;border-radius:var(--r-md);background:rgba(245,158,11,.12);display:flex;align-items:center;justify-content:center;font-size:1.1rem;color:var(--gold);flex-shrink:0;"><i class="fa-solid fa-seedling"></i></div>
+                <div style="flex:1;"><div style="font-size:.84rem;font-weight:600;color:var(--text);">Mazorca de Cacao</div><div style="font-size:.74rem;color:var(--muted);">Ayer · Estado: Regular</div></div>
+                <span class="badge bg-gold">48%</span>
+              </div>
+            </div>
+          </div>
+        </div>
 
-        // Navigation Engine
-        function navigate(sectionId) {
-            document.querySelectorAll('.section').forEach(el => el.classList.add('hidden'));
-            document.getElementById(sectionId).classList.remove('hidden');
-            
-            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-            const activeNav = document.querySelector(`.nav-item[data-target="${sectionId}"]`);
-            if(activeNav) activeNav.classList.add('active');
-            
-            // close mobile sidebar if open
-            if(window.innerWidth <= 768) {
-                document.getElementById('sidebar').classList.remove('open');
-                document.getElementById('mobileOverlay').style.display = 'none';
-            }
-            
-            // Render charts on demand if they enter view
-            if(sectionId === 'dashboard') renderDashChart();
-            if(sectionId === 'analytics') renderAnalyticsCharts();
-        }
+        <!-- Analysis Results -->
+        <div class="card">
+          <div class="card-hd">
+            <div class="card-title"><i class="fa-solid fa-microscope text-green" style="margin-right:.4rem;"></i>Diagnóstico Foliar IA</div>
+          </div>
+          <div class="analysis-panel" id="imgResultPanel">
+            <div style="text-align:center;padding:3rem 1rem;color:var(--muted);">
+              <i class="fa-solid fa-magnifying-glass" style="font-size:2.5rem;display:block;margin-bottom:1rem;color:var(--border-hover);"></i>
+              <div style="font-weight:700;margin-bottom:.45rem;color:var(--text2);">Sin análisis aún</div>
+              <div style="font-size:.84rem;">Sube una imagen de tu cultivo para obtener el diagnóstico.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div><!-- /page-imagen -->
 
-        // Mobile Menu
-        document.getElementById('mobileMenuBtn').addEventListener('click', () => {
-            document.getElementById('sidebar').classList.add('open');
-            document.getElementById('mobileOverlay').style.display = 'block';
-        });
-        document.getElementById('mobileOverlay').addEventListener('click', () => {
-            document.getElementById('sidebar').classList.remove('open');
-            document.getElementById('mobileOverlay').style.display = 'none';
-        });
+  <!-- ━━━━━━━━━━━━━━━━━━ PAGE: BIBLIOTECA ━━━━━━━━━━━━━━━━━━ -->
+  <div class="page" id="page-biblioteca">
+    <div class="section-wrap">
+      <div class="section-hd">
+        <h1 class="section-title"><i class="fa-solid fa-book-open text-green" style="margin-right:.5rem;"></i>Biblioteca Agrícola</h1>
+        <p class="section-sub">Base de conocimiento sobre enfermedades, plagas y manejo de cultivos de café y cacao.</p>
+      </div>
+      <div class="lib-controls">
+        <div class="search-box">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input type="text" id="libSearch" placeholder="Buscar enfermedad, plaga, cultivo..." oninput="searchLib(this.value)" aria-label="Buscar en biblioteca">
+        </div>
+        <div class="filter-chips">
+          <span class="chip active" data-lf="all" onclick="filterLib('all')">Todos</span>
+          <span class="chip" data-lf="saludable" onclick="filterLib('saludable')">✅ Saludable</span>
+          <span class="chip" data-lf="cafe" onclick="filterLib('cafe')">☕ Café</span>
+          <span class="chip" data-lf="cacao" onclick="filterLib('cacao')">🍫 Cacao</span>
+          <span class="chip" data-lf="plagas" onclick="filterLib('plagas')">🐛 Plagas</span>
+        </div>
+      </div>
+      <div class="lib-grid" id="libraryGrid">
+        <!-- Rendered by JS -->
+      </div>
+    </div>
+  </div><!-- /page-biblioteca -->
 
-        let currentUser = null;
+  <!-- ━━━━━━━━━━━━━━━━━━ PAGE: NOTICIAS ━━━━━━━━━━━━━━━━━━ -->
+  <div class="page" id="page-noticias">
+    <div class="section-wrap">
+      <div class="section-hd">
+        <h1 class="section-title"><i class="fa-solid fa-newspaper text-green" style="margin-right:.5rem;"></i>Noticias Agrícolas</h1>
+        <p class="section-sub">Las últimas noticias del sector cafetero, cacaotero y la tecnología agrícola.</p>
+      </div>
+      <div class="news-tabs">
+        <span class="news-tab active" data-nt="all" onclick="renderNews('all')">Todas</span>
+        <span class="news-tab" data-nt="cafe" onclick="renderNews('cafe')">☕ Café</span>
+        <span class="news-tab" data-nt="cacao" onclick="renderNews('cacao')">🍫 Cacao</span>
+        <span class="news-tab" data-nt="clima" onclick="renderNews('clima')">🌧️ Clima</span>
+        <span class="news-tab" data-nt="tecnologia" onclick="renderNews('tecnologia')">🤖 Tecnología</span>
+      </div>
+      <div class="news-grid" id="newsGrid"></div>
+    </div>
+  </div><!-- /page-noticias -->
 
-        // Auth Logic
-        async function checkSession() {
-            const { data: { session } } = await localSupabase.auth.getSession();
-            handleAuthChange(session);
-            
-            localSupabase.auth.onAuthStateChange((_event, session) => {
-                handleAuthChange(session);
-            });
-        }
+  <!-- ━━━━━━━━━━━━━━━━━━ PAGE: ALERTAS ━━━━━━━━━━━━━━━━━━ -->
+  <div class="page" id="page-alertas">
+    <div class="section-wrap">
+      <div class="section-hd">
+        <h1 class="section-title"><i class="fa-solid fa-bell text-red" style="margin-right:.5rem;"></i>Centro de Alertas</h1>
+        <p class="section-sub">Monitoreo inteligente de riesgos climáticos, fitosanitarios y de productividad.</p>
+      </div>
+      <div class="alerts-toolbar">
+        <div style="display:flex;align-items:center;gap:.65rem;">
+          <span class="badge bg-red"><i class="fa-solid fa-circle" style="font-size:.5rem;"></i> 3 sin leer</span>
+          <span style="font-size:.85rem;color:var(--muted);">6 alertas en total</span>
+        </div>
+        <div style="display:flex;gap:.65rem;">
+          <button class="btn btn-secondary btn-sm" onclick="markAllAlerts()"><i class="fa-solid fa-check-double"></i> Marcar todas leídas</button>
+          <button class="btn btn-primary btn-sm" onclick="renderAlerts()"><i class="fa-solid fa-rotate-right"></i> Actualizar</button>
+        </div>
+      </div>
+      <div class="alerts-list" id="alertsList"></div>
+    </div>
+  </div><!-- /page-alertas -->
 
-        function handleAuthChange(session) {
-            if(session) {
-                currentUser = session.user;
-                bodyClass.remove('logged-out');
-                
-                // Set profile info
-                document.getElementById('profEmail').innerText = currentUser.email;
-                document.getElementById('profName').innerText = currentUser.user_metadata?.full_name || 'Agricultor';
-                
-                // Show dashboard 
-                const isAuthPage = ['home', 'login', 'register'].includes(getActiveSection());
-                if(isAuthPage) navigate('dashboard');
-            } else {
-                currentUser = null;
-                bodyClass.add('logged-out');
-                navigate('home');
-            }
-        }
-        
-        function getActiveSection() {
-            const active = document.querySelector('.section:not(.hidden)');
-            return active ? active.id : 'home';
-        }
+  <!-- ━━━━━━━━━━━━━━━━━━ PAGE: ASESORÍA ━━━━━━━━━━━━━━━━━━ -->
+  <div class="page" id="page-asesoria">
+    <div class="section-wrap">
+      <div class="section-hd">
+        <h1 class="section-title"><i class="fa-solid fa-user-tie text-green" style="margin-right:.5rem;"></i>Asesoría Profesional</h1>
+        <p class="section-sub">Conecta con agrónomos expertos certificados para resolver problemas específicos de tu cultivo.</p>
+      </div>
+      <div class="advisory-grid">
+        <!-- Experts -->
+        <div>
+          <div style="font-weight:700;font-size:.9rem;color:var(--text);margin-bottom:1rem;"><i class="fa-solid fa-users text-primary" style="margin-right:.4rem;"></i>Expertos Disponibles</div>
+          <div class="expert-grid" id="expertsGrid"></div>
+        </div>
 
-        // Registration form
-        document.getElementById('regForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const email = document.getElementById('regEmail').value;
-            const pass = document.getElementById('regPass').value;
-            const full_name = document.getElementById('regName').value;
-            const btn = document.getElementById('btnReg');
-            const err = document.getElementById('regError');
-            
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Registrando...';
-            btn.disabled = true;
-            err.classList.add('hidden');
-            
-            const { data, error } = await localSupabase.auth.signUp({
-                email, password: pass,
-                options: { data: { full_name } }
-            });
-            
-            btn.innerHTML = 'Registrarse';
-            btn.disabled = false;
-            
-            if(error) {
-                err.innerText = error.message;
-                err.classList.remove('hidden');
-            } else {
-                document.getElementById('regSuccess').innerText = 'Cuenta creada. Iniciando sesión...';
-                document.getElementById('regSuccess').classList.remove('hidden');
-                setTimeout(() => {/* session listener catches change */}, 1000);
-            }
-        });
+        <!-- Form -->
+        <div class="card" id="advisoryForm">
+          <div class="card-hd">
+            <div>
+              <div class="card-title">Solicitar Asesoría</div>
+              <div class="card-sub">Respuesta garantizada en 24 horas hábiles</div>
+            </div>
+            <span class="badge bg-green"><i class="fa-solid fa-shield-halved"></i> Verificado</span>
+          </div>
+          <form onsubmit="submitAdvisory(event)">
+            <div class="form-grid">
+              <div class="form-group">
+                <label class="form-label"><i class="fa-solid fa-user"></i>Nombre Completo</label>
+                <input type="text" class="form-control" required placeholder="Tu nombre completo">
+              </div>
+              <div class="form-group">
+                <label class="form-label"><i class="fa-solid fa-envelope"></i>Correo Electrónico</label>
+                <input type="email" class="form-control" required placeholder="correo@ejemplo.com">
+              </div>
+            </div>
+            <div class="form-grid">
+              <div class="form-group">
+                <label class="form-label"><i class="fa-solid fa-phone"></i>Teléfono / WhatsApp</label>
+                <input type="tel" class="form-control" placeholder="+57 300 123 4567">
+              </div>
+              <div class="form-group">
+                <label class="form-label"><i class="fa-solid fa-location-dot"></i>Departamento / Ciudad</label>
+                <input type="text" class="form-control" placeholder="Ej. Huila, Colombia">
+              </div>
+            </div>
+            <div class="form-grid">
+              <div class="form-group">
+                <label class="form-label"><i class="fa-solid fa-seedling"></i>Tipo de Cultivo</label>
+                <select class="form-control">
+                  <option>☕ Café</option>
+                  <option>🍫 Cacao</option>
+                  <option>Ambos</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label"><i class="fa-solid fa-bookmark"></i>Tipo de Consulta</label>
+                <select class="form-control">
+                  <option>🐛 Plagas</option>
+                  <option>🍄 Enfermedades</option>
+                  <option>🌱 Fertilización</option>
+                  <option>💧 Riego</option>
+                  <option>📊 Productividad</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label"><i class="fa-solid fa-user-tie"></i>Experto Seleccionado</label>
+              <input type="text" id="advExpert" class="form-control" placeholder="Selecciona un experto del panel izquierdo">
+            </div>
+            <div class="form-group">
+              <label class="form-label"><i class="fa-solid fa-comment-dots"></i>Describe tu Problema</label>
+              <textarea class="form-control" rows="5" required placeholder="Describe en detalle el problema que presenta tu cultivo, desde cuándo, en qué área y qué síntomas observas..."></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block btn-lg">
+              <i class="fa-solid fa-paper-plane"></i> Solicitar Asesoría
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div><!-- /page-asesoria -->
 
-        // Login form
-        document.getElementById('loginForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const email = document.getElementById('loginEmail').value;
-            const pass = document.getElementById('loginPass').value;
-            const btn = document.getElementById('btnLogin');
-            const err = document.getElementById('loginError');
-            
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Ingresando...';
-            btn.disabled = true;
-            err.classList.add('hidden');
-            
-            const { error } = await localSupabase.auth.signInWithPassword({ email, password: pass });
-            
-            btn.innerHTML = 'Ingresar';
-            btn.disabled = false;
-            
-            if(error) {
-                err.innerText = "Credenciales incorrectas.";
-                err.classList.remove('hidden');
-            }
-        });
+  <!-- ━━━━━━━━━━━━━━━━━━ PAGE: HISTORIAL ━━━━━━━━━━━━━━━━━━ -->
+  <div class="page" id="page-historial">
+    <div class="section-wrap">
+      <div class="section-hd">
+        <h1 class="section-title"><i class="fa-solid fa-clock-rotate-left text-green" style="margin-right:.5rem;"></i>Historial de Análisis</h1>
+        <p class="section-sub">Registro completo de todas tus predicciones y análisis de imagen.</p>
+      </div>
+      <div class="history-ctrl">
+        <div style="display:flex;gap:.65rem;align-items:center;flex-wrap:wrap;">
+          <span class="badge bg-blue" id="histCount">0 registros</span>
+          <input type="text" class="form-control" style="width:200px;" placeholder="Filtrar por cultivo...">
+        </div>
+        <div style="display:flex;gap:.65rem;">
+          <button class="btn btn-secondary btn-sm" onclick="exportHistoryCSV()"><i class="fa-solid fa-file-csv"></i> Exportar CSV</button>
+          <button class="btn btn-danger btn-sm" onclick="clearHistory()"><i class="fa-solid fa-trash"></i> Limpiar</button>
+        </div>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden;">
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr>
+              <th>Fecha</th>
+              <th>Tipo</th>
+              <th>Cultivo</th>
+              <th>Área (Ha)</th>
+              <th>Producción (kg)</th>
+              <th>Productividad</th>
+              <th>Riesgo</th>
+            </tr></thead>
+            <tbody id="historyBody">
+              <tr><td colspan="7" style="text-align:center;padding:3rem;color:var(--muted);">
+                <i class="fa-solid fa-folder-open" style="font-size:2rem;display:block;margin-bottom:.75rem;"></i>
+                Realiza tu primera predicción para poblar el historial.
+              </td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div><!-- /page-historial -->
 
-        // Logout
-        document.getElementById('btnLogout').addEventListener('click', async () => {
-            await localSupabase.auth.signOut();
-        });
+  <!-- ━━━━━━━━━━━━━━━━━━ PAGE: CONFIGURACIÓN ━━━━━━━━━━━━━━━━━━ -->
+  <div class="page" id="page-configuracion">
+    <div class="section-wrap">
+      <div class="section-hd">
+        <h1 class="section-title"><i class="fa-solid fa-gear text-green" style="margin-right:.5rem;"></i>Configuración</h1>
+        <p class="section-sub">Personaliza tu experiencia en AgroVision y ajusta los parámetros de la plataforma.</p>
+      </div>
 
-        // --- PREDICTION LOGIC ---
-        let currentPredChart = null;
-        document.getElementById('predictForm').addEventListener('submit', (e) => {
-            e.preventDefault();
-            const cultivo = document.getElementById('pCultivo').value;
-            const area = parseFloat(document.getElementById('pArea').value);
-            const edad = parseInt(document.getElementById('pEdad').value);
-            
-            // Mock Prediction Formula
-            // Base yield per hectare: Cafe 1200kg, Cacao 800kg
-            const base = cultivo === 'cafe' ? 1200 : 800;
-            // modify by age (prime is ~5 years)
-            const ageMod = edad < 3 ? 0.3 : (edad > 15 ? 0.6 : 1);
-            const rawYield = base * area * ageMod;
-            
-            // random chance modifier based on inputs to simulate AI computation
-            const finalYield = Math.floor(rawYield * (0.8 + Math.random() * 0.4));
-            
-            document.getElementById('resProd').innerText = finalYield + ' kg Mín / ' + Math.floor(finalYield*1.15) + " kg Max";
-            
-            // Risk logic
-            const riesgo = Math.random() > 0.6 ? 'Alto' : 'Bajo';
-            const rEl = document.getElementById('resRiesgo');
-            rEl.innerText = riesgo;
-            rEl.style.color = riesgo === 'Alto' ? 'var(--danger)' : 'var(--primary)';
-            
-            document.getElementById('resRecom').innerText = riesgo === 'Alto' 
-                ? "El clima adverso puede reducir el rendimiento en un 20%. Considera usar mallas de sombra e irrigación suplementaria." 
-                : "Condiciones óptimas. Mantener cronograma de fertilización actual.";
-            
-            document.getElementById('predResult').classList.remove('hidden');
-            
-            // Render mini chart
-            if(currentPredChart) currentPredChart.destroy();
-            const ctx = document.getElementById('predictChart').getContext('2d');
-            currentPredChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: ['Trim1', 'Trim2', 'Trim3', 'Trim4'],
-                    datasets: [{
-                        label: 'Proyección de Cosecha (kg)',
-                        data: [finalYield*0.1, finalYield*0.2, finalYield*0.6, finalYield*0.1],
-                        borderColor: '#22c55e',
-                        backgroundColor: 'rgba(34, 197, 94, 0.2)',
-                        fill: true, tension: 0.4
-                    }]
-                },
-                options: { responsive: true, maintainAspectRatio: false }
-            });
-        });
+      <div class="config-grid">
+        <!-- Profile -->
+        <div class="card">
+          <div class="card-title" style="margin-bottom:1.25rem;"><i class="fa-solid fa-user text-green" style="margin-right:.4rem;"></i>Perfil de Usuario</div>
+          <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;">
+            <div class="nav-avatar" style="width:56px;height:56px;font-size:1.1rem;">JF</div>
+            <div>
+              <div style="font-weight:700;color:var(--text);">Juan Fernández</div>
+              <div style="font-size:.8rem;color:var(--muted);">juan.fernandez@agrotech.co</div>
+              <span class="badge bg-green mt-1">Plan Pro · Activo</span>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Nombre completo</label>
+            <input type="text" class="form-control" value="Juan Fernández">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Correo electrónico</label>
+            <input type="email" class="form-control" value="juan.fernandez@agrotech.co">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Ciudad / Región</label>
+            <input type="text" id="cfg-city" class="form-control" value="Bogota">
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="showToast('Perfil actualizado correctamente','success')"><i class="fa-solid fa-save"></i> Guardar cambios</button>
+        </div>
 
-        // --- IMAGE UPLOAD LOGIC ---
-        const imgInput = document.getElementById('imgUpload');
-        const imgPreview = document.getElementById('imgPreview');
-        const btnAnalyze = document.getElementById('btnAnalyze');
-        let selectedFile = null;
+        <!-- Preferences -->
+        <div class="card">
+          <div class="card-title" style="margin-bottom:1.25rem;"><i class="fa-solid fa-sliders text-green" style="margin-right:.4rem;"></i>Preferencias</div>
+          <div class="setting-row">
+            <div>
+              <div class="setting-lbl">Modo Oscuro</div>
+              <div class="setting-desc">Tema oscuro para reducir fatiga visual</div>
+            </div>
+            <label class="toggle-sw"><input type="checkbox" checked onchange="toggleTheme()"><span class="toggle-slider"></span></label>
+          </div>
+          <div class="setting-row">
+            <div>
+              <div class="setting-lbl">Alertas por defecto</div>
+              <div class="setting-desc">Mostrar alertas automáticas al iniciar</div>
+            </div>
+            <label class="toggle-sw"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+          </div>
+          <div class="setting-row">
+            <div>
+              <div class="setting-lbl">Notificaciones de clima</div>
+              <div class="setting-desc">Alertas automáticas sobre cambios climáticos</div>
+            </div>
+            <label class="toggle-sw"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+          </div>
+          <div class="setting-row">
+            <div>
+              <div class="setting-lbl">Sidebar colapsado</div>
+              <div class="setting-desc">Menú lateral compacto por defecto</div>
+            </div>
+            <label class="toggle-sw"><input type="checkbox" onchange="toggleSidebar()"><span class="toggle-slider"></span></label>
+          </div>
+          <div class="setting-row">
+            <div>
+              <div class="setting-lbl">Sonidos de interfaz</div>
+              <div class="setting-desc">Efectos de audio en acciones importantes</div>
+            </div>
+            <label class="toggle-sw"><input type="checkbox"><span class="toggle-slider"></span></label>
+          </div>
+        </div>
 
-        imgInput.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if(file) {
-                selectedFile = file;
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    imgPreview.src = e.target.result;
-                    imgPreview.style.display = 'block';
-                    btnAnalyze.classList.remove('hidden');
-                    document.getElementById('analysisResult').classList.add('hidden');
-                }
-                reader.readAsDataURL(file);
-            }
-        });
+        <!-- API Keys -->
+        <div class="card">
+          <div class="card-title" style="margin-bottom:1.25rem;"><i class="fa-solid fa-key text-gold" style="margin-right:.4rem;"></i>Integraciones API</div>
+          <div class="form-group">
+            <label class="form-label">OpenWeather API Key</label>
+            <input type="password" class="form-control" value="bd5e378503939ddaee76f12ad7a97608" placeholder="Tu clave de OpenWeather">
+            <div class="form-hint"><i class="fa-solid fa-circle-info"></i> Obtén tu clave gratuita en openweathermap.org</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Ciudad para clima</label>
+            <input type="text" class="form-control" placeholder="Bogota, CO">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Supabase URL (Storage)</label>
+            <input type="url" class="form-control" placeholder="https://xxxx.supabase.co">
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="showToast('API Keys guardadas','success')"><i class="fa-solid fa-plug"></i> Guardar integraciones</button>
+        </div>
 
-        btnAnalyze.addEventListener('click', async () => {
-            if(!selectedFile) return;
-            
-            btnAnalyze.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analizando...';
-            btnAnalyze.disabled = true;
+        <!-- Stats -->
+        <div class="card">
+          <div class="card-title" style="margin-bottom:1.25rem;"><i class="fa-solid fa-chart-pie text-blue" style="margin-right:.4rem;"></i>Resumen de Uso</div>
+          <div style="display:flex;flex-direction:column;gap:.85rem;">
+            <div class="mkt-item">
+              <div class="mkt-label"><i class="fa-solid fa-brain" style="color:var(--primary);"></i>Predicciones realizadas</div>
+              <div class="mkt-price" id="statPreds">0</div>
+            </div>
+            <div class="mkt-item">
+              <div class="mkt-label"><i class="fa-solid fa-camera" style="color:var(--purple);"></i>Imágenes analizadas</div>
+              <div class="mkt-price" id="statImgs">0</div>
+            </div>
+            <div class="mkt-item">
+              <div class="mkt-label"><i class="fa-solid fa-bell" style="color:var(--red);"></i>Alertas procesadas</div>
+              <div class="mkt-price">6</div>
+            </div>
+            <div class="mkt-item">
+              <div class="mkt-label"><i class="fa-solid fa-book-open" style="color:var(--gold);"></i>Consultas biblioteca</div>
+              <div class="mkt-price">9</div>
+            </div>
+          </div>
+          <button class="btn btn-danger btn-sm btn-block mt-3" onclick="clearHistory()">
+            <i class="fa-solid fa-trash"></i> Eliminar todos los datos locales
+          </button>
+        </div>
+      </div>
+    </div>
+  </div><!-- /page-configuracion -->
 
-            try {
-                // 1. Upload to Supabase Storage Bucket 'cultivos'
-                const fileExt = selectedFile.name.split('.').pop();
-                const fileName = `${Math.random()}.${fileExt}`;
-                const filePath = `scans/${fileName}`;
-                
-                const { error: uploadError } = await localSupabase.storage
-                    .from('cultivos')
-                    .upload(filePath, selectedFile, { cacheControl: '3600', upsert: false });
+</div><!-- /app-wrap -->
 
-                // We ignore uploadError visually allowing prototype to work even if permissions flap
-                // but log to console.
-                if(uploadError) console.warn("Supabase Storage error (Continuing with mock AI):", uploadError);
+<!-- ══════════════════════ MODALS ══════════════════════ -->
 
-                // 2. Mock AI visual analysis
-                setTimeout(() => {
-                    const states = [
-                        { status: 'Excelente', color: '#166534', bg: '#bbf7d0', msg: 'Coloración perfecta y hojas sin machas. Continúa con los cuidados normales.'},
-                        { status: 'Bueno', color: '#15803d', bg: '#dcfce3', msg: 'La planta luce saludable. Existe una ligera deficiencia de nitrógeno, pero nada preocupante.'},
-                        { status: 'Regular', color: '#b45309', bg: '#fef3c7', msg: 'Signos tempranos de oxidación. Recomendado aplicar fungicida preventivo.'},
-                        { status: 'Crítico', color: '#b91c1c', bg: '#fee2e2', msg: 'ALERTA: Se detectan síntomas avanzados de roya del café/monilia. Aislamiento e intervención inmediata requerida.'}
-                    ];
-                    
-                    const pick = states[Math.floor(Math.random() * states.length)];
-                    
-                    const resDiv = document.getElementById('analysisResult');
-                    const spanState = document.getElementById('diagState');
-                    
-                    spanState.innerText = pick.status;
-                    spanState.style.color = pick.color;
-                    resDiv.style.backgroundColor = pick.bg;
-                    resDiv.style.border = `1px solid ${pick.color}`;
-                    document.getElementById('diagText').innerText = pick.msg;
-                    document.getElementById('diagText').style.color = pick.color;
-                    
-                    resDiv.classList.remove('hidden');
-                    btnAnalyze.innerHTML = '<i class="fas fa-check"></i> Análisis Completado';
-                }, 1500);
+<!-- Library Modal -->
+<div class="modal-overlay" id="libModal">
+  <div class="modal-box">
+    <div class="modal-hd">
+      <div class="modal-title"><i class="fa-solid fa-book-open text-green" style="margin-right:.4rem;"></i>Ficha Técnica</div>
+      <button class="modal-close" onclick="closeModal('libModal')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div id="libModalContent"></div>
+  </div>
+</div>
 
-            } catch(e) {
-                console.error(e);
-                btnAnalyze.innerHTML = 'Error. Intente de nuevo';
-                btnAnalyze.disabled = false;
-            }
-        });
+<!-- News Modal -->
+<div class="modal-overlay" id="newsModal">
+  <div class="modal-box">
+    <div class="modal-hd">
+      <div class="modal-title"><i class="fa-solid fa-newspaper text-green" style="margin-right:.4rem;"></i>Artículo Completo</div>
+      <button class="modal-close" onclick="closeModal('newsModal')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div id="newsModalContent"></div>
+  </div>
+</div>
 
-        // --- CHARTS LOGIC ---
-        let mainDashChart = null;
-        function renderDashChart() {
-            if(mainDashChart) return; // run once
-            const ctx = document.getElementById('dashChart');
-            if(!ctx) return;
-            mainDashChart = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun'],
-                    datasets: [{
-                        label: 'Historial Cosecha (kg)',
-                        data: [400, 450, 420, 600, 800, 1240],
-                        backgroundColor: '#15803d',
-                        borderRadius: 4
-                    }]
-                },
-                options: { responsive: true, maintainAspectRatio: false }
-            });
-        }
-        
-        let ac1, ac2 = null;
-        function renderAnalyticsCharts() {
-            if(ac1) return; 
-            ac1 = new Chart(document.getElementById('anaChart1'), {
-                type: 'line',
-                data: { labels: ['2023', '2024', '2025(Est)', '2026(Proy)'], datasets: [{ label: 'Ingresos ($USD)', data: [12000, 15000, 14000, 19000], borderColor:'#3b82f6', tension: 0.3 }] },
-                options: { responsive: true, maintainAspectRatio: false }
-            });
-            ac2 = new Chart(document.getElementById('anaChart2'), {
-                type: 'doughnut',
-                data: { labels: ['Café', 'Cacao', 'Otros'], datasets: [{ data: [60, 30, 10], backgroundColor: ['#15803d', '#78350f', '#eab308'] }] },
-                options: { responsive: true, maintainAspectRatio: false }
-            });
-        }
+<!-- VAPI Voice Assistant -->
+<vapi-widget
+  public-key="15bd8e44-da9b-4849-aaa8-b967d6d28b19"
+  assistant-id="8a9f9772-2bf2-4470-8107-f8dfcd2e1b00"
+  mode="voice"
+  theme="dark"
+  base-bg-color="#000000"
+  accent-color="#14B8A6"
+  cta-button-color="#000000"
+  cta-button-text-color="#ffffff"
+  border-radius="large"
+  size="full"
+  position="bottom-right"
+  title="Clara"
+  start-button-text="Start"
+  end-button-text="End Call"
+  chat-first-message="¡Hola! Soy Clara, tu asistente agrícola de AgroVision. ¿En qué puedo ayudarte hoy?"
+  chat-placeholder="Escribe tu pregunta agrícola..."
+  voice-show-transcript="true"
+  consent-required="true"
+  consent-title="Términos y condiciones"
+  consent-content="Al hacer clic en 'Aceptar', consientes que AgroVision procese tu voz para brindarte asesoría agrícola."
+  consent-storage-key="vapi_widget_consent">
+</vapi-widget>
+<script src="https://unpkg.com/@vapi-ai/client-sdk-react/dist/embed/widget.umd.js" async></script>
 
-        // Run Initialization
-        checkSession();
-        // default to dash if auth kicks in
-    </script>
+<!-- External Libraries -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+
+<!-- App Logic -->
+<script src="app.js"></script>
+
+<!-- Demo Image helper -->
+<script>
+function loadDemoImage() {
+  // Simulate loading a demo image for showcase
+  const demoUrl = 'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?auto=format&fit=crop&w=600&q=80';
+  const pw = document.getElementById('imgPreviewWrap');
+  const pi = document.getElementById('imgPreviewImg');
+  if (pw && pi) { pi.src = demoUrl; pw.style.display = 'block'; }
+  const panel = document.getElementById('imgResultPanel');
+  if (panel) panel.innerHTML = '<div style="text-align:center;padding:2rem;"><div class="loader-spinner" style="margin:auto;"></div><p style="color:var(--muted);margin-top:1rem;font-size:.85rem;">Analizando imagen demo con IA...</p></div>';
+  showToast('Cargando imagen de demostración...', 'info');
+  // Simulate analysis result after delay
+  setTimeout(() => {
+    const health = 62 + Math.floor(Math.random()*20);
+    const pG = 45 + Math.random()*20;
+    const pY = 10 + Math.random()*15;
+    const pB = 5 + Math.random()*10;
+    const status = health >= 75 ? 'Excelente' : health >= 55 ? 'Bueno' : 'Regular';
+    const sc = health >= 75 ? 'bg-green' : health >= 55 ? 'bg-blue' : 'bg-gold';
+    if (panel) panel.innerHTML = `
+      <div class="health-gauge">
+        <div class="gauge-val" style="color:${health>=75?'var(--primary)':health>=55?'var(--blue)':'var(--gold)'}">${health}%</div>
+        <div class="gauge-lbl">Índice de Salud Foliar</div>
+        <div style="margin-top:.75rem;"><span class="badge ${sc}">${status}</span></div>
+      </div>
+      <div>
+        <div class="prog-label"><span>Verde: ${pG.toFixed(1)}%</span><span style="color:var(--gold)">Amarillo: ${pY.toFixed(1)}%</span></div>
+        <div class="prog-bar"><div class="prog-fill" style="width:${pG}%"></div></div>
+      </div>
+      <div class="diag-grid">
+        <div class="diag-item"><div class="diag-lbl"><i class="fa-solid fa-check-circle text-green" style="margin-right:.3rem;font-size:.78rem;"></i>Clorofila</div><div class="diag-val">Media-Alta</div></div>
+        <div class="diag-item"><div class="diag-lbl"><i class="fa-solid fa-exclamation-circle text-gold" style="margin-right:.3rem;font-size:.78rem;"></i>Clorosis</div><div class="diag-val">Leve detectada</div></div>
+        <div class="diag-item"><div class="diag-lbl"><i class="fa-solid fa-check-circle text-green" style="margin-right:.3rem;font-size:.78rem;"></i>Plagas</div><div class="diag-val">No detectadas</div></div>
+        <div class="diag-item"><div class="diag-lbl"><i class="fa-solid fa-check-circle text-green" style="margin-right:.3rem;font-size:.78rem;"></i>Estrés hídrico</div><div class="diag-val">Normal</div></div>
+      </div>
+      <div>
+        <div style="font-weight:700;font-size:.85rem;color:var(--text);margin-bottom:.65rem;"><i class="fa-solid fa-lightbulb text-gold" style="margin-right:.4rem;"></i>Recomendaciones</div>
+        <div class="rec-item" style="margin-bottom:.5rem;"><i class="fa-solid fa-arrow-right"></i><span class="rec-text">Aplicar fertilizante foliar con magnesio y zinc para corregir clorosis leve</span></div>
+        <div class="rec-item" style="margin-bottom:.5rem;"><i class="fa-solid fa-arrow-right"></i><span class="rec-text">Continuar monitoreo preventivo mensual del cultivo</span></div>
+        <div class="rec-item"><i class="fa-solid fa-arrow-right"></i><span class="rec-text">Optimizar poda para mejorar ventilación y penetración de luz</span></div>
+      </div>`;
+    showToast(`Análisis demo completado: ${status} (${health}% salud)`, 'success');
+  }, 2200);
+}
+
+// Update stat counters on config page
+document.addEventListener('DOMContentLoaded', () => {
+  setTimeout(() => {
+    const sp = document.getElementById('statPreds');
+    const si = document.getElementById('statImgs');
+    if (sp) sp.textContent = S?.predictions?.length || 0;
+    if (si) si.textContent = S?.analyses?.length || 0;
+  }, 2500);
+});
+</script>
+
 </body>
 </html>
