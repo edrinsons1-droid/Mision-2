@@ -1269,6 +1269,7 @@ async function guardarPrediccion(resultado) {
     console.error(error);
   } else {
     console.log("Historial guardado correctamente");
+    await cargarHistorial();
   }
 }
 
@@ -1311,6 +1312,7 @@ async function guardarAnalisisImagen(file, resultado) {
     console.error("Error guardando historial:", error);
   } else {
     console.log("Historial guardado correctamente");
+    await cargarHistorial();
   }
 }
 
@@ -1318,6 +1320,7 @@ async function cargarHistorial() {
   const { data: { user } } = await supabaseClient.auth.getUser();
 
   if (!user) return;
+  console.log("Usuario:", user);
 
   const { data, error } = await supabaseClient
     .from('historial_uso')
@@ -1359,6 +1362,7 @@ async function cargarHistorial() {
 
     renderHistoryRows();
     updateDashboard();
+    console.log("Historial actualizado");
   }
 }
 
