@@ -106,13 +106,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   createToastContainer();
 
   if (supabaseClient) {
-    await checkAuth();
-    supabaseClient.auth.onAuthStateChange(async (event, session) => {
-      const { data: { user } } = await supabaseClient.auth.getUser();
-      S.user = user || null;
+    // Escuchar cambios de sesión. Esto se dispara automáticamente una vez al cargar (INITIAL_SESSION)
+    // Usamos el parámetro session directamente en lugar de hacer otra petición (.getUser) que causa colisiones ("stolen auth token")
+    supabaseClient.auth.onAuthStateChange((event, session) => {
+      S.user = session?.user || null;
       updateAuthUI();
-      if (!user && !['inicio', 'login', 'registro'].includes(S.currentPage)) {
-        window.location.href = "index.html";
+      if (!S.user && !['inicio', 'login', 'registro'].includes(S.currentPage)) {
+        if (window.location.pathname.endsWith('index.html') || window.location.pathname === '/') {
+           // let router handle it
+        } else {
+           window.location.reload();
+        }
       }
     });
   }
@@ -955,12 +959,12 @@ async function logout() {
   const { error } = await supabaseClient.auth.signOut();
 
   if (error) {
-    alert("Error al cerrar sesión");
+    Swal.fire("Error", "No se pudo cerrar sesión", "error");
     console.error(error);
   } else {
     localStorage.clear();
     sessionStorage.clear();
-    window.location.href = "index.html";
+    window.location.reload();
   }
 }
 
