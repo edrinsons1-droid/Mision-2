@@ -1280,24 +1280,24 @@ async function guardarAnalisisImagen(file, resultado) {
 
   console.log("Guardando imagen...");
 
-  const fileName = `${user.id}/${Date.now()}_${file.name}`;
+  let url = null;
 
-  // Subir imagen
-  const { error: uploadError } = await supabaseClient.storage
-    .from('imagenes')
-    .upload(fileName, file);
+  if (file && file.name) {
+    const fileName = `${user.id}/${Date.now()}_${file.name}`;
 
-  if (uploadError) {
-    console.error(uploadError);
-    return;
+    // Subir imagen
+    const { error: uploadError } = await supabaseClient.storage
+      .from('imagenes')
+      .upload(fileName, file);
+
+    if (uploadError) {
+      console.error(uploadError);
+    } else {
+      // Obtener URL
+      const { data } = supabaseClient.storage.from('imagenes').getPublicUrl(fileName);
+      url = data.publicUrl;
+    }
   }
-
-  // Obtener URL
-  const { data } = supabaseClient.storage
-    .from('imagenes')
-    .getPublicUrl(fileName);
-
-  const url = data.publicUrl;
 
   // Guardar en historial
   const { error } = await supabaseClient.from('historial_uso').insert({
